@@ -1,0 +1,30 @@
+Package: rMatching
+Title: (Fuzzy) Match twi Datasets
+Version: 0.1
+Authors@R: 
+    person("Matthias", "Uckert", , "Matthias.Uckert@outlook.com", role = c("aut", "cre"),
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: What the package does (one paragraph).
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.2
+Depends: 
+    data.table,
+    R (>= 2.10)
+LazyData: true
+Imports: 
+    tibble,
+    stringi,
+    magrittr,
+    rlang,
+    carrier,
+    dplyr,
+    furrr,
+    future,
+    purrr,
+    tidyr,
+    dtplyr,
+    progress,
+    stringdist,
+    bench

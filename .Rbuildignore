@@ -1,0 +1,6 @@
+^rMatching\.Rproj$
+^\.Rproj\.user$
+^data-raw$
+^LICENSE\.md$
+test-debug
+test-script
