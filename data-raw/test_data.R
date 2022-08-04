@@ -15,7 +15,8 @@ table_target <- openxlsx::read.xlsx("data-raw/firms/orbis.xlsx") %>%
   ungroup() %>%
   select(id, isin, name, iso3, city, address) %>%
   distinct(id, .keep_all = TRUE) %>%
-  mutate(across(where(is.character), toupper))
+  mutate(across(where(is.character), toupper)) %>%
+  mutate(iso3 = dplyr::if_else(row_number() %in% c(20, 50, 70, 99), NA_character_, iso3))
 
 
 table_source <- openxlsx::read.xlsx("data-raw/firms/compustat.xlsx") %>%
@@ -27,7 +28,8 @@ table_source <- openxlsx::read.xlsx("data-raw/firms/compustat.xlsx") %>%
   ungroup() %>%
   select(id, isin, name, iso3, city, address) %>%
   distinct(id, .keep_all = TRUE) %>%
-  mutate(across(where(is.character), toupper))
+  mutate(across(where(is.character), toupper)) %>%
+  mutate(iso3 = dplyr::if_else(row_number() %in% c(21, 55, 71:74), NA_character_, iso3))
 
 table_matches <- dplyr::inner_join(table_source, table_target, by = "isin", suffix = c("_s", "_t")) %>%
   select(

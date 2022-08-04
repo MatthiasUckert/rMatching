@@ -3,9 +3,11 @@
 #'
 #' @format A data frame with 3,322 rows and 3 variables:
 #' \describe{
-#'   \item{iso3}{ISO 3166-1 alpha-3 country codes}
-#'   \item{legal_form_orig}{Original legal form}
-#'   \item{legal_form_stand}{Standardized legal form}
+#'   \item{id}{Legal Form ID}
+#'   \item{country_code}{ISO 3166-1 alpha-3 country codes}
+#'   \item{lfo}{Original legal form}
+#'   \item{lfs}{Standardized legal form}
+#'   \item{source}{Source}
 #' }
 "legal_form_gleif"
 
@@ -14,9 +16,11 @@
 #'
 #' @format A data frame with 2,399 rows and 3 variables:
 #' \describe{
-#'   \item{iso3}{ISO 3166-1 alpha-3 country codes}
-#'   \item{legal_form_orig}{Original legal form}
-#'   \item{legal_form_stand}{Standardized legal form}
+#'   \item{id}{Legal Form ID}
+#'   \item{country_code}{ISO 3166-1 alpha-3 country codes}
+#'   \item{lfo}{Original legal form}
+#'   \item{lfs}{Standardized legal form}
+#'   \item{source}{Source}
 #' }
 "legal_form_ecb"
 
@@ -25,9 +29,12 @@
 #'
 #' @format A data frame with 4,933 rows and 3 variables:
 #' \describe{
-#'   \item{iso3}{ISO 3166-1 alpha-3 country codes}
-#'   \item{legal_form_orig}{Original legal form}
-#'   \item{legal_form_stand}{Standardized legal form}
+#'   \item{id}{Legal Form ID}
+#'   \item{country_code}{ISO 3166-1 alpha-3 country codes}
+#'   \item{lfo}{Original legal form}
+#'   \item{lfs}{Standardized legal form}
+#'   \item{source}{Source}
+#'   \item{ids}{Original IDs}
 #' }
 "legal_form_all"
 

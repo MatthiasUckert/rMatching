@@ -4,18 +4,39 @@
 \alias{uniqueness_data}
 \title{Score Data}
 \usage{
-uniqueness_data(.matches, .source, .target, .cols_match)
+uniqueness_data(
+  .matches,
+  .target,
+  .source,
+  .cols_match,
+  .max_match = 10,
+  .method = "osa",
+  .mat_size = 1e+07,
+  .workers = floor(future::availableCores()/4),
+  .verbose = TRUE
+)
 }
 \arguments{
 \item{.matches}{Dataframe produced by match_data()}
 
-\item{.source}{The Source Dataframe.\cr
-(Must contain a unique column id and the columns you want to match on)}
-
 \item{.target}{The Target Dataframe.\cr
 (Must contain a unique column id and the columns you want to match on)}
 
+\item{.source}{The Source Dataframe.\cr
+(Must contain a unique column id and the columns you want to match on)}
+
 \item{.cols_match}{A character vector of columns to perform fuzzy matching.}
+
+\item{.max_match}{Maximum number of matches to return (Default = 10)}
+
+\item{.method}{One of "osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex".\cr
+See: stringdist-metrics {stringdist}}
+
+\item{.mat_size}{Maximal Matrix Size}
+
+\item{.workers}{Number of cores to utilize (Default floor(future::availableCores() / 4))}
+
+\item{.verbose}{Print Additional Information?}
 }
 \value{
 A dataframe

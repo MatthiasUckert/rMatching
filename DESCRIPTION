@@ -27,4 +27,10 @@ Imports:
     dtplyr,
     progress,
     stringdist,
-    bench
+    bench,
+    scales,
+    reshape2
+Suggests: 
+    rmarkdown,
+    knitr
+VignetteBuilder: knitr

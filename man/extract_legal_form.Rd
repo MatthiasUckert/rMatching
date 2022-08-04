@@ -6,7 +6,7 @@
 \usage{
 extract_legal_form(
   .tab,
-  .col_name,
+  .col,
   .col_country = NULL,
   .legal_forms = data.frame(),
   .workers = future::availableCores()
@@ -15,7 +15,7 @@ extract_legal_form(
 \arguments{
 \item{.tab}{A dataframe (either the source or target dataframe)}
 
-\item{.col_name}{The column with firm names}
+\item{.col}{The column with firm names}
 
 \item{.col_country}{Optionally, a column with iso3 country codes}
 

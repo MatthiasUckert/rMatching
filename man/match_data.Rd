@@ -10,9 +10,10 @@ match_data(
   .cols_match,
   .max_match = 10,
   .method = "osa",
-  .workers = future::availableCores(),
-  .split = Inf,
-  .verbose = TRUE
+  .mat_size = 1e+07,
+  .workers = floor(future::availableCores()/4),
+  .verbose = TRUE,
+  .join = TRUE
 )
 }
 \arguments{
@@ -29,11 +30,13 @@ match_data(
 \item{.method}{One of "osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex".\cr
 See: stringdist-metrics {stringdist}}
 
-\item{.workers}{Number of cores to utilize (Default all cores determined by future::availableCores())}
+\item{.mat_size}{Maximal Matrix Size}
 
-\item{.split}{Maximum Number of Items to process in the Source Dataframe}
+\item{.workers}{Number of cores to utilize (Default floor(future::availableCores() / 4))}
 
 \item{.verbose}{Print Additional Information?}
+
+\item{.join}{Join Data first?}
 }
 \value{
 A Dataframe

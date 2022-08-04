@@ -2,7 +2,7 @@
 % Please edit documentation in R/helper.R
 \name{check_id}
 \alias{check_id}
-\title{Check ID COlumns}
+\title{Check ID Columns}
 \usage{
 check_id(.source, .target, .error = TRUE)
 }

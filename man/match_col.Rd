@@ -7,10 +7,11 @@
 match_col(
   .source,
   .target,
-  .cols_match,
+  .col,
   .max_match = 10,
   .method = "osa",
-  .workers = future::availableCores()
+  .workers = floor(future::availableCores()/4),
+  .join = TRUE
 )
 }
 \arguments{
@@ -20,7 +21,7 @@ match_col(
 \item{.target}{The Target Dataframe.\cr
 (Must contain a unique column id and the columns you want to match on)}
 
-\item{.cols_match}{A character vector of columns to perform fuzzy matching.}
+\item{.col}{A character vector of columns to perform fuzzy matching.}
 
 \item{.max_match}{Maximum number of matches to return (Default = 10)}
 
@@ -28,6 +29,8 @@ match_col(
 See: stringdist-metrics {stringdist}}
 
 \item{.workers}{Number of cores to utilize (Default all cores determined by future::availableCores())}
+
+\item{.join}{Join Data first?}
 }
 \value{
 A Dataframe

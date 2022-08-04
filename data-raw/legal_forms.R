@@ -1,7 +1,17 @@
 library(tidyverse); library(stringi); library(janitor); library(countrycode)
 
+id_merge <- function(.id, .val) {
 
-legal_form_gleif <- read_delim("data-raw/legal_forms/2021-10-21-elf-code-list-v1.4.1.csv", ",", col_types = cols()) %>%
+  if (any(is.na(.id))) stop(".id MUST not contain NAs", call. = FALSE)
+  if (any(is.na(.val))) stop(".val MUST not contain NAs", call. = FALSE)
+  if (length(.id) != length(.val)) stop(".id and .val MUST have the same length", call. = FALSE)
+  gr <- igraph::graph_from_data_frame(tibble::tibble(id = .id, val = .val))
+  as.vector(igraph::components(gr)$membership[.val])
+
+}
+legal_form_gleif <- read_csv(
+  "https://raw.githubusercontent.com/Gawaboumga/iso-20275-python/master/iso20275/Cleaned%20-%20with%20additional%20-%20ISO-20275%20-%202021-09-23.csv"
+  ) %>%
   clean_names() %>%
   select(
     id = elf_code,
@@ -12,12 +22,60 @@ legal_form_gleif <- read_delim("data-raw/legal_forms/2021-10-21-elf-code-list-v1
     trans_abbr = abbreviations_transliterated
   ) %>%
   pivot_longer(local_full:trans_abbr, names_to = "type", values_to = "legal_form") %>%
+  # select(-type) %>%
   filter(!is.na(legal_form)) %>%
-  mutate(legal_form = stri_split_fixed(legal_form, ";")) %>%
-  unnest(legal_form) %>%
-  mutate(source = "gleif")
+  mutate(source = "gleif") %>%
+  filter(stri_enc_isascii(legal_form)) %>%
+  mutate(legal_form = standardize_str(legal_form)) %>%
+  filter(nchar(legal_form) > 1) %>%
+  distinct(legal_form, id, .keep_all = TRUE) %>%
+  mutate(
+    id_new = id_merge(id, paste0(iso3, legal_form))
+    ) %>%
+  distinct(legal_form, id_new, .keep_all = TRUE) %>%
+  mutate(iso3 = countrycode(iso3, "iso2c", "iso3c")) %>%
+  group_by(id_new, country_code = iso3) %>%
+  # mutate(ids = paste(unique(sort(id)), collapse = "; ")) %>%
+  group_by(id_new, country_code) %>%
+  arrange(nchar(legal_form)) %>%
+  mutate(lfs = first(legal_form)) %>%
+  select(id_new, country_code, lfo = legal_form, lfs)
 
-ecb0 <- openxlsx::read.xlsx("data-raw/legal_forms/List_of_legal_forms.xlsx", 3, startRow = 2) %>%
+tab_ <- RFgen::filter_duplicates(legal_form_gleif, legal_form, iso3) %>%
+  arrange(legal_form, iso3)
+tab_ <- filter(legal_form_gleif, id %in% tab_$id)
+
+%>%
+  mutate(lfo = legal_form, lfs = legal_form) %>%
+  mutate(iso3 = countrycode(iso3, "iso2c", "iso3c")) %>%
+  filter(!is.na(iso3)) %>%
+  group_by(id) %>%
+  arrange(nchar(lfs), .by_group = TRUE) %>%
+  mutate(lfs = first(lfs)) %>%
+  ungroup() %>%
+  select(id, country_code = iso3, lfo, lfs, source) %>%
+  distinct() %>%
+  mutate(
+    id_new = id_merge(id, paste0(country_code, lfo)),
+    id_new = paste0(country_code, stringi::stri_pad_left(id_new, 5, 0))
+  ) %>%
+  group_by(id_new, country_code, lfo) %>%
+  arrange(nchar(lfs), .by_group = TRUE) %>%
+  summarise(
+    source = paste(sort(unique(source)), collapse = "; "),
+    ids = paste(sort(unique(id)), collapse = "; "),
+    lfs = first(lfs),
+    .groups = "drop_last"
+  ) %>%
+  arrange(nchar(lfs), .by_group = TRUE) %>%
+  mutate(lfs = first(lfs)) %>%
+  ungroup() %>%
+  select(id = id_new, country_code, lfo, lfs, source, ids)
+
+tab_ <- RFgen::filter_duplicates(legal_form_gleif, lfo, country_code) %>%
+  arrange(lfo, country_code)
+
+legal_form_ecb <- openxlsx::read.xlsx("data-raw/legal_forms/List_of_legal_forms.xlsx", 3, startRow = 2) %>%
   clean_names() %>%
   select(
     id = legal_form,
@@ -30,45 +88,49 @@ ecb0 <- openxlsx::read.xlsx("data-raw/legal_forms/List_of_legal_forms.xlsx", 3, 
   filter(!is.na(legal_form)) %>%
   mutate(legal_form = stri_split_fixed(legal_form, "/")) %>%
   unnest(legal_form) %>%
-  mutate(source = "ecb")
-
-ecb1 <- ecb0 %>%
-  filter(iso3 == "-") %>%
-  select(-iso3) %>%
-  expand_grid(iso3 = unique(ecb0$iso3)) %>%
-  filter(!iso3 == "-")
-
-legal_form_ecb <- distinct(bind_rows(ecb0, ecb1)) %>%
-  filter(!iso3 == "-")
-
-legal_form_all <- bind_rows(legal_form_gleif, legal_form_ecb) %>%
+  mutate(source = "ecb") %>%
   filter(stri_enc_isascii(legal_form)) %>%
+  mutate(legal_form = standardize_str(legal_form)) %>%
+  filter(nchar(legal_form) > 1) %>%
+  mutate(lfo = legal_form, lfs = legal_form) %>%
+  mutate(iso3 = countrycode(iso3, "iso2c", "iso3c")) %>%
+  filter(!is.na(iso3)) %>%
+  group_by(id) %>%
+  arrange(nchar(lfs), .by_group = TRUE) %>%
+  mutate(lfs = first(lfs)) %>%
+  ungroup() %>%
+  select(id, country_code = iso3, lfo, lfs, source) %>%
+  distinct() %>%
   mutate(
-    legal_form = standardize_str(legal_form),
-    type = if_else(grepl("full", type), "full", "abbr")
+    id_new = id_merge(id, paste0(country_code, lfo)),
+    id_new = paste0(country_code, stringi::stri_pad_left(id_new, 5, 0))
   ) %>%
-  group_by(source, iso3, id) %>%
-  arrange(desc(nchar(legal_form)), .by_group = TRUE) %>%
-  mutate(legal_form_stand = first(legal_form)) %>%
-  ungroup() %>%
-  distinct(source, iso3, legal_form, legal_form_stand) %>%
-  filter(nchar(legal_form_stand) > 0) %>%
-  rename(legal_form_orig = legal_form) %>%
-  mutate(iso3 = countrycode(iso3, "iso2c", "iso3c"))
+  group_by(id_new, country_code, lfo) %>%
+  arrange(nchar(lfs), .by_group = TRUE) %>%
+  summarise(
+    source = paste(sort(unique(source)), collapse = "; "),
+    ids = paste(sort(unique(id)), collapse = "; "),
+    lfs = first(lfs),
+    .groups = "drop"
+  ) %>%
+  select(id = id_new, country_code, lfo, lfs, source, ids)
 
-legal_form_ecb <- filter(legal_form_all, source == "ecb") %>%
-  distinct(iso3, legal_form_orig, legal_form_stand)
 
-legal_form_gleif <- filter(legal_form_all, source == "gleif") %>%
-  distinct(iso3, legal_form_orig, legal_form_stand)
 
-legal_form_all <- legal_form_all %>%
-  distinct(iso3, legal_form_orig, legal_form_stand) %>%
-  group_by(iso3, legal_form_orig) %>%
-  arrange(nchar(legal_form_stand), .by_group = TRUE) %>%
-  mutate(legal_form_stand = first(legal_form_stand)) %>%
-  ungroup() %>%
-  distinct(iso3, legal_form_orig, legal_form_stand)
+legal_form_all <- bind_rows(legal_form_ecb, legal_form_gleif) %>%
+  mutate(
+    id_new = id_merge(id, paste0(country_code, lfo)),
+    id_new = paste0(country_code, stringi::stri_pad_left(id_new, 5, 0))
+    ) %>%
+  group_by(id_new, country_code, lfo) %>%
+  arrange(nchar(lfs), .by_group = TRUE) %>%
+  summarise(
+    source = paste(sort(unique(source)), collapse = "; "),
+    ids = paste(sort(unique(id)), collapse = "; "),
+    lfs = first(lfs),
+    .groups = "drop"
+    ) %>%
+  select(id = id_new, country_code, lfo, lfs, source, ids)
 
 
 usethis::use_data(legal_form_all, overwrite = TRUE)
