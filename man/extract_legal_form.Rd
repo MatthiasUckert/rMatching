@@ -7,7 +7,7 @@
 extract_legal_form(
   .tab,
   .col,
-  .col_country = NULL,
+  .country_code = NULL,
   .legal_forms = data.frame(),
   .workers = future::availableCores()
 )
@@ -17,7 +17,7 @@ extract_legal_form(
 
 \item{.col}{The column with firm names}
 
-\item{.col_country}{Optionally, a column with iso3 country codes}
+\item{.country_code}{Optionally, a column with iso3 country codes}
 
 \item{.legal_forms}{A dataframe with legal forms}
 

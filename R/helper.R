@@ -339,7 +339,8 @@ match_col <- function(
     b = t_[[col_]],
     method = .method,
     nthread = .workers
-  ) %>% reshape_mat(.max_match) %>%
+  )
+  tab1_ <- reshape_mat(tab1_, .max_match) %>%
     dplyr::mutate(
       id_s = s_[["id"]][id_s],
       id_t = t_[["id"]][id_t]

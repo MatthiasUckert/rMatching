@@ -49,7 +49,7 @@ standardize_str <- function(.str, .op = c("space", "punct", "case", "ascii")) {
 #'
 #' @param .tab A dataframe (either the source or target dataframe)
 #' @param .col The column with firm names
-#' @param .col_country Optionally, a column with iso3 country codes
+#' @param .country_code Optionally, a column with iso3 country codes
 #' @param .legal_forms A dataframe with legal forms
 #' @param .workers Number of cores to utilize (Default all cores determined by future::availableCores())
 #'
@@ -70,7 +70,7 @@ extract_legal_form <- function(
   `:=` <- rlang::`:=`
 
   # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
-  tmp <- legal_form_orig <- legal_form_stand <- legal_form <- name <-  lf_stand <- lf_orig <- NULL
+  tmp <- lfo <- lfs <- legal_form <- name <-  lf_stand <- lf_orig <- NULL
 
   # Convert to Tibble and Standardize -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
   tab_ <- tibble::as_tibble(.tab)
@@ -79,21 +79,21 @@ extract_legal_form <- function(
   # Get Legal Form Table -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
   tab_lf_ <- if (nrow(.legal_forms) == 0) get("legal_form_all") else .legal_forms
 
-  if (is.null(.col_country)) {
+  if (is.null(.country_code)) {
     tab_lf_ <- tab_lf_ %>%
-      dplyr::distinct(legal_form_orig, legal_form_stand) %>%
-      dplyr::distinct(legal_form_orig, .keep_all = TRUE)
-    join_by_ <- "legal_form_orig"
+      dplyr::distinct(lfo, lfs) %>%
+      dplyr::distinct(lfo, .keep_all = TRUE)
+    join_by_ <- "lfo"
 
   } else {
-    colnames(tab_lf_) <- c(.col_country, "legal_form_orig", "legal_form_stand")
-    join_by_ <- c(.col_country, "legal_form_orig")
+    colnames(tab_lf_) <- c(.country_code, "lfo", "lfs")
+    join_by_ <- c(.country_code, "lfo")
   }
 
 
   # Extract Legal Forms -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
-  lf_ <- unique(tab_lf_[["legal_form_orig"]])
-  nm_ <- tab_[[.col_name]]
+  lf_ <- unique(tab_lf_[["lfo"]])
+  nm_ <- tab_[[.col]]
 
   f_ <- carrier::crate(function(.lf, .nm) which(endsWith(.nm, paste0(" ", .lf))))
   future::plan("multisession", workers = .workers)
@@ -108,35 +108,35 @@ extract_legal_form <- function(
   # Reshape List to Dataframe -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
   tab_lf_ext_ <- lst_lf_ext_ %>%
     purrr::compact() %>%
-    tibble::enframe(name = "legal_form_orig", value = "tmp") %>%
+    tibble::enframe(name = "lfo", value = "tmp") %>%
     tidyr::unnest(tmp) %>%
-    dplyr::arrange(dplyr::desc(nchar(legal_form_orig))) %>%
+    dplyr::arrange(dplyr::desc(nchar(lfo))) %>%
     dplyr::distinct(tmp, .keep_all = TRUE)
 
   # Get Output -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
-  tab_ %>%
+  a <- tab_ %>%
     dplyr::mutate(tmp = dplyr::row_number()) %>%
     dplyr::left_join(tab_lf_ext_, by = "tmp") %>%
     dplyr::left_join(tab_lf_, by = join_by_) %>%
     dplyr::rename(
-      lf_stand = legal_form_stand,
-      lf_orig = legal_form_orig
+      lf_stand = lfs,
+      lf_orig = lfo
     ) %>%
-    dplyr::relocate(lf_stand, .after = !!symp(.col_name)) %>%
-    dplyr::relocate(lf_orig, .after = !!symp(.col_name)) %>%
+    dplyr::relocate(lf_stand, .after = !!symp(.col)) %>%
+    dplyr::relocate(lf_orig, .after = !!symp(.col)) %>%
     dplyr::mutate(
-      !!symp(.col_name, "_adj") := trimws(rlf(!!symp(.col_name), lf_orig, "")),
-      .after = !!symp(.col_name)) %>%
+      !!symp(.col, "_adj") := trimws(rlf(!!symp(.col), lf_orig, "")),
+      .after = !!symp(.col)) %>%
     dplyr::mutate(
-      !!symp(.col_name, "_adj") := dplyr::if_else(
-        is.na(!!symp(.col_name, "_adj")), !!dplyr::sym(.col_name), !!symp(.col_name, "_adj")
+      !!symp(.col, "_adj") := dplyr::if_else(
+        is.na(!!symp(.col, "_adj")), !!dplyr::sym(.col), !!symp(.col, "_adj")
       )) %>%
     dplyr::mutate(
-      !!symp(.col_name, "_std") := dplyr::if_else(
-        !is.na(lf_stand), paste(!!symp(.col_name, "_adj"), lf_stand), !!symp(.col_name, "_adj")
-      ), .after = !!symp(.col_name, "_adj")) %>%
+      !!symp(.col, "_std") := dplyr::if_else(
+        !is.na(lf_stand), paste(!!symp(.col, "_adj"), lf_stand), !!symp(.col, "_adj")
+      ), .after = !!symp(.col, "_adj")) %>%
     dplyr::select(-tmp) %>%
-    dplyr::mutate(!!dplyr::sym(.col_name) := .tab[[.col_name]])
+    dplyr::mutate(!!dplyr::sym(.col) := .tab[[.col]])
 }
 
 #' Match Data
