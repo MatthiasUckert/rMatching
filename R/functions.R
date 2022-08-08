@@ -496,8 +496,15 @@ match_data <- function(.dir, .max_match = 10,
     future::plan("multisession", workers = .workers)
     tmp_match_ <- furrr::future_map_dfr(
       .x = lst_groups_,
-      .f = ~ match_group(filter_groups(.dir, .x), .max_match, method_, .workers),
-      .options = furrr::furrr_options(seed = TRUE),
+      .f = ~ match_group(
+        .lst = filter_groups(.dir, .x),
+        .max_match = .max_match,
+        .method = method_,
+        .workers = .workers
+        ),
+      .options = furrr::furrr_options(
+        seed = TRUE, globals = c("method_", ".max_match", ".workers")
+        ),
       .progress = .verbose,
       .id = "group"
     )
@@ -527,7 +534,7 @@ match_data <- function(.dir, .max_match = 10,
     dplyr::mutate(
       sim = dplyr::if_else(
         condition = is.na(sim) & !is.na(vals) & !is.na(valt),
-        true = stringdist::stringsim(vals, valt, method_, nthread = .workers),
+        true = stringdist::stringsim(vals, valt, method_),
         false = sim
       )
     ) %>%
@@ -582,12 +589,20 @@ score_data <- function(.dir, .weights = NULL, .max_match = 10) {
     dplyr::arrange(col_new)
 
   matches_ <- fst::read_fst(file.path(.dir, "_matches.fst"))
-  int_ <- which(startsWith(colnames(matches_), "score"))
-  for (i in seq_len(length(int_))) {
-    matches_[, int_[i]] <- matches_[, int_[i]] * names_$weight[i]
+
+  if (length(.weights) == 1) {
+    scores_ <- dplyr::mutate(matches_, score = score_f1)
+  } else {
+    int_ <- which(startsWith(colnames(matches_), "score"))
+    for (i in seq_len(length(int_))) {
+      matches_[, int_[i]] <- matches_[, int_[i]] * names_$weight[i]
+    }
+
+    scores_ <- dplyr::mutate(matches_, score = rowSums(matches_[, int_], na.rm = TRUE))
   }
 
-  scores_ <- dplyr::mutate(matches_, score = rowSums(matches_[, int_], na.rm = TRUE)) %>%
+
+  scores_ <- scores_ %>%
     dtplyr::lazy_dt() %>%
     dplyr::group_by(hash_s) %>%
     dplyr::arrange(dplyr::desc(score), .by_group = TRUE) %>%
