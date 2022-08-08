@@ -11,7 +11,7 @@ table_target <- openxlsx::read.xlsx("data-raw/firms/orbis.xlsx") %>%
   rowwise() %>%
   mutate(
     id = digest::digest(paste(isin, 1), "xxhash32"),
-    ) %>%
+  ) %>%
   ungroup() %>%
   select(id, isin, name, iso3, city, address) %>%
   distinct(id, .keep_all = TRUE) %>%

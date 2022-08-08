@@ -1,5 +1,5 @@
 Package: rMatching
-Title: (Fuzzy) Match twi Datasets
+Title: (Fuzzy) Match two Datasets
 Version: 0.1
 Authors@R: 
     person("Matthias", "Uckert", , "Matthias.Uckert@outlook.com", role = c("aut", "cre"),
@@ -14,23 +14,20 @@ Depends:
     R (>= 2.10)
 LazyData: true
 Imports: 
-    tibble,
-    stringi,
-    magrittr,
-    rlang,
-    carrier,
+    dtplyr,
     dplyr,
+    magrittr,
+    fastdigest,
+    fst,
     furrr,
     future,
-    purrr,
-    tidyr,
-    dtplyr,
+    glue,
     progress,
+    purrr,
+    reshape2,
     stringdist,
-    bench,
-    scales,
-    reshape2
-Suggests: 
-    rmarkdown,
-    knitr
-VignetteBuilder: knitr
+    stringi,
+    stringr,
+    tibble,
+    tidyft,
+    tidyr

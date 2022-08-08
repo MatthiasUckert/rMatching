@@ -1,0 +1,116 @@
+---
+title: "Walk-Through: Match Company Names with rMatching"
+author: "Matthias Uckert"
+# output: rmarkdown::html_vignette
+output: html_notebook
+vignette: >
+  %\VignetteIndexEntry{get-started}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Introduction
+
+This is a short walk-through how to use the ***rMatching*** library.
+
+First we load the ***rMatching*** package and the ***tidyverse*** package (which we will use to transform data)
+
+```{r include=FALSE}
+library <- function(...) suppressPackageStartupMessages(base::library(...))
+```
+
+```{r setup}
+library(rMatching); library(tidyverse)
+```
+
+# Data
+
+The package comes with a couple of testing data-sets, which we will use in this example.
+
+Specifically we will use the following data-sets:
+
+-   **table_source/table_target:** A Dataframe with company names and additional company information
+
+-   **table_matches:** A dataframe in which the companies in able_source/table_target are already matched (we will use this to measure the accuracy of the matching)
+
+Throughout the package we will use the following terminology when referring to data-sets:
+
+-   **Source:** The table **you want to match** against another data source, e.g., you have a couple of company names and you want to match them against another database to retrieve company identifiers.
+
+-   **Target:** The table your data (source) **should be matched to**, e.g., the database that contains additional information on the companies in your source table.
+
+**Source Table**
+
+```{r}
+head(table_source)
+```
+
+**Target Table**
+
+```{r}
+head(table_target)
+```
+
+Both data-frames contain exactly the same columns (id, name, iso3, city, address). The naming of the column is not relevant, there are only two important things to consider:
+
+1.  Both the source and the target dataframe must have a column called 'id'.
+
+2.  Only columns that have the same name in both data-frames can be matched.
+
+# Matching
+
+The matching can be done with a single function, called **match_data().**
+
+This function has the following arguments:
+
+-   **.source:** Your Source Dataframe
+
+-   **.target:** Your Target Dataframe
+
+-   **.cols_match:** The columns you want to match as a named character vector. The names of this vector must either be 'fuzzy' (abbreviation: 'f') or 'exact' (abbreviation: 'e'). Columns that you label 'fuzzy' will be fuzzy matched using the stringdist-package. Columns that you label exact, won't be matched, but they will form groups for the fuzzy matching (i.e., we will use the country code column iso3 as exact, which means that we will only consider matches that are in the same country).
+
+-   **.max_match:** The maximum number of matches for a single firm in the source table
+
+-   **.method:** the fuzzy matching algorithm you want to use, see **stringdist-metrics {stringdist}**
+
+-   **.mat_size:** The maximum size of the similarity matrix. This might be important for you due to memory limitation. Imagine you have a source table with 25,000 names and a target dataframe with 2,000,000 names. If you want to find the most similar names, you have to to a complete comparison of all names in the source and target table, which would result in 25,000 \* 2,000,000 = 50,000,000,000 comparisons (i.e., a Matrix with 25,000 rows and 2,000,000 columns). Assuming no overhead of the function (which there is, a lot) this matrix alone would need 50,000,000,000 \* 8 bytes = 400 GB of memory. To avoid this, set the matrix size to a value that your memory can handle. The match_data() function will automatically, try to split the data in a way that it will always in a matrix smaller or equal to this parameter (It does so by comparing names that have similar number of characters).
+
+-   **.workers:** Used for parallelization of the underlying code.
+
+-   **.verbose:** Print information and progress bars while processing the data.
+
+-   **.join:** For almost all purposes this should be set to TRUE. It means that all perfect matches between columns in the source and target dataframe are retrieved w/o fuzzy matching (dplyr::left_join). This will speed up the calculation and reduces the memory load. Note: If a perfect match is retrieved, it will be excluded from the source but not the target dataframe.
+
+What will happen is, that step-by-step every single column in your data-sets are matched and a similarity score is calculated. Let's see how this looks like:
+
+```{r cache=TRUE}
+source_firms <- table_source
+target_firms <- table_target
+
+match1 <- rMatching::match_data(
+  .source = source_firms,
+  .target = table_target,
+  .cols_match = c(f = "name", e = "iso3", f = "city", f = "address"),
+  .max_match = 25,
+  .method = "osa",
+  .mat_size = 1e7,
+  .workers = floor(future::availableCores() / 4),
+  .verbose = TRUE,
+  .join = TRUE
+)
+```
+
+The resulting dataframe looks like this:
+
+```{r}
+head(match1)
+```
+
+The columns id_s (id_t) are the initial IDs in the source (target) table. All other columns have a prefix sim\_ and show the similarity of the fuzzy match.

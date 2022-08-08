@@ -2,5 +2,7 @@
 ^\.Rproj\.user$
 ^data-raw$
 ^LICENSE\.md$
-test-debug
-test-script
+_debug
+_benchmarks
+_scripts
+_vignettes

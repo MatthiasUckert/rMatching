@@ -43,9 +43,7 @@ legal_form_gleif <- read_csv(
 
 tab_ <- RFgen::filter_duplicates(legal_form_gleif, legal_form, iso3) %>%
   arrange(legal_form, iso3)
-tab_ <- filter(legal_form_gleif, id %in% tab_$id)
-
-%>%
+tab_ <- filter(legal_form_gleif, id %in% tab_$id) %>%
   mutate(lfo = legal_form, lfs = legal_form) %>%
   mutate(iso3 = countrycode(iso3, "iso2c", "iso3c")) %>%
   filter(!is.na(iso3)) %>%
