@@ -579,7 +579,7 @@ score_data <- function(.dir, .weights = NULL, .max_match = 10) {
   }
 
   # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-  name <- weight <- col_new <- hash_s <- score <- NULL
+  name <- weight <- col_new <- hash_s <- score <- score_f1 <- NULL
 
   weight_ <- tibble::tibble(col_old = names(.weights), weight = .weights)
   names_ <- fst::read_fst(file.path(.dir, "tables", "snames.fst")) %>%
