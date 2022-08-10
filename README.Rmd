@@ -1,0 +1,252 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# rMatching
+
+<!-- badges: start -->
+
+<!-- badges: end -->
+
+## Installation
+
+You can install the development version of rMatching from [GitHub](https://github.com/) with:
+
+``` r
+# install.packages("devtools")
+devtools::install_github("MatthiasUckert/rMatching")
+```
+
+## Build-In Tables
+
+Below The basic steps how to match two data sets
+
+```{r example}
+library(rMatching); library(tidyverse)
+```
+
+The package contains three build-in datasets:
+
+-   table_source: The source table with company names
+
+-   table_target: The target table with company names
+
+-   table_matches: A table in which source and target table are already matched
+
+```{r}
+head(table_source, 3)
+```
+
+
+```{r}
+head(table_target, 3)
+```
+
+
+```{r}
+head(table_matches, 3)
+```
+
+# Matching Pipeline
+
+## Step 1: Prepare Tables
+
+Tables have to b prepared with the function: prep_tables()
+
+Important: Specify the columns you want to match in the argument **.col**. This must be a named vector (**e** for **exact matching** and **f** for f**uzzy matching**)
+
+```{r}
+prep_tables(
+  .source = table_source,
+  .target = table_target,
+  .cols = c(f = "name", e = "iso3", f = "city", f = "address"),
+  .fstd = standardize_str,
+  .dir = "_debug_data1",
+  .range = 10
+)
+```
+
+The relevant tables are stored in the directory (.dir)
+
+```{r}
+tibble(file = list.files("_debug_data1/tables/")) %>%
+  mutate(type = case_when(
+    startsWith(file, "s") ~ "Source Table",
+    startsWith(file, "s") ~ "Target Table",
+    TRUE ~ "Groups"
+  )) %>% select(type, file)
+
+```
+
+## Step 2: Match Data
+For match_data() you have to reference the directory and the method used for matching
+```{r}
+match_data(
+  .dir = "_debug_data1",
+  .max_match = 20,
+  .method = "osa",
+  .workers = 4,
+  .verbose = TRUE
+)
+```
+
+Here we match over all methods
+```{r}
+purrr::walk(get_method_names(), ~ match_data("_debug_data1", 20, .x, 4, TRUE))
+```
+
+## Step 3: Score Data
+For score_data() you have to give the fuzzy matching columns some weights
+```{r}
+w <- c(name = .8, city = .1, address = .1)
+score_data(
+  .dir = "_debug_data1",
+  .weights = w ,
+  .max_match = 20,
+  .method = "osa"
+)
+```
+
+Here we score over all methods
+```{r}
+purrr::walk(get_method_names(), ~ score_data("_debug_data1", w, 20, .x))
+```
+
+## Step 4: Score Data
+select_data() is the only functions that returns a dataframe directly.
+You can choose up to which rank you retrueve the data.
+We directly match over all methods.
+```{r}
+tab_match <- purrr::map_dfr(
+  .x = get_method_names(),
+  .f = ~ select_data(
+    .dir = "_debug_data1",
+    .rank = 1,
+    .method = .x
+  ), .id = "method"
+)
+```
+
+# Matching Comparison
+```{r}
+.matches <- select(mutate(table_matches, match = 1), id_s, id_t, match)
+tab_comparison <- left_join(tab_match, .matches, by = c("id_s", "id_t")) %>%
+  replace_na(list(match = 0)) %>%
+  group_by(method) %>%
+  summarise(p = sum(match) / n())
+```
+
+```{r}
+tab_comparison %>%
+  mutate(label = scales::percent(p, .1)) %>%
+  ggplot(aes(method, p)) + 
+  geom_col(fill = "blue", color = "black") + 
+  ggthemes::geom_rangeframe() + 
+  ggthemes::theme_tufte() +
+  scale_y_continuous(labels = scales::percent) +
+  geom_text(aes(label = label), vjust = 1.5, colour = "white", size = 3.5)
+```
+
+# Legal Form Adjustment
+We can also adjust the lagel form upfront, and will do so for the bedt method "jw"
+
+```{r}
+tab_source_lf <- extract_legal_form(
+  .tab = table_source,
+  .col = "name",
+  .workers = 4
+)
+
+tab_target_lf <- extract_legal_form(
+  .tab = table_source,
+  .col = "name",
+  .workers = 4
+)
+```
+
+```{r}
+head(tab_source_lf, 3)
+```
+
+
+```{r}
+head(tab_target_lf, 3)
+```
+
+Now we use the name_adj column for the matching which is the company name without its legal form.
+Additionally, we also fuzzy match on the legal form (we have to fuzzy match, because requiring exactly the same legal form is to strict)
+```{r}
+prep_tables(
+  .source = tab_source_lf,
+  .target = tab_target_lf,
+  .cols = c(f = "name_adj", e = "iso3", f = "city", f = "address", f = "lfs"),
+  .fstd = standardize_str,
+  .dir = "_debug_data2",
+  .range = 10
+)
+```
+
+```{r}
+match_data(
+  .dir = "_debug_data2",
+  .max_match = 20,
+  .method = "jw",
+  .workers = 4,
+  .verbose = TRUE
+)
+```
+
+```{r}
+w <- c(name_adj = .8, city = .1, address = .05, lfs = .05)
+score_data(
+  .dir = "_debug_data2",
+  .weights = w ,
+  .max_match = 20,
+  .method = "jw"
+)
+```
+
+
+```{r}
+tab_match_lf <- select_data(
+  .dir = "_debug_data1",
+  .rank = 1,
+  .method = "jw"
+) %>%
+  mutate(method = "jw-lf") %>%
+  bind_rows(tab_match)
+```
+
+# Matching Comparison
+```{r}
+.matches <- select(mutate(table_matches, match = 1), id_s, id_t, match)
+tab_comparison <- left_join(tab_match_lf, .matches, by = c("id_s", "id_t")) %>%
+  replace_na(list(match = 0)) %>%
+  group_by(method) %>%
+  summarise(p = sum(match) / n())
+```
+
+```{r}
+tab_comparison %>%
+  mutate(label = scales::percent(p, .1)) %>%
+  mutate(fill = if_else(method == "jw-lf", "red", "blue")) %>%
+  ggplot(aes(method, p, fill = fill)) + 
+  geom_col(color = "black") + 
+  scale_fill_manual(name = "method", values=c("blue","darkred")) +
+  ggthemes::geom_rangeframe() + 
+  ggthemes::theme_tufte() +
+  scale_y_continuous(labels = scales::percent) +
+  geom_text(aes(label = label), vjust = 1.5, colour = "white", size = 3.5) + 
+  theme(legend.position = "none")
+```

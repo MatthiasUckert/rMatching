@@ -8,10 +8,9 @@
 A data frame with 2,399 rows and 3 variables:
 \describe{
 \item{id}{Legal Form ID}
-\item{country_code}{ISO 3166-1 alpha-3 country codes}
+\item{iso3}{ISO 3166-1 alpha-3 country codes}
 \item{lfo}{Original legal form}
 \item{lfs}{Standardized legal form}
-\item{source}{Source}
 }
 }
 \usage{

@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions.R
 \name{prep_table}
 \alias{prep_table}
-\title{Heper Function: Prepare Table}
+\title{Helper Function: Prepare Table}
 \usage{
 prep_table(.tab, .cols, .fstd = standardize_str, .dir, .type = c("s", "t"))
 }

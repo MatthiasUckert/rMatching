@@ -2,7 +2,7 @@
 % Please edit documentation in R/functions.R
 \name{filter_groups}
 \alias{filter_groups}
-\title{Filter data from fst files}
+\title{Helper Function: Filter data from fst files}
 \usage{
 filter_groups(.dir, .row)
 }
@@ -15,5 +15,5 @@ filter_groups(.dir, .row)
 Filtered Dataframe
 }
 \description{
-Filter data from fst files
+Helper Function: Filter data from fst files
 }

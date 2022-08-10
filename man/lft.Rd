@@ -2,14 +2,14 @@
 % Please edit documentation in R/functions.R
 \name{lft}
 \alias{lft}
-\title{List Files in Table}
+\title{Helper Function: List Files in Table}
 \usage{
 lft(.dirs, .reg = NULL, .id = "doc_id", .rec = FALSE)
 }
 \arguments{
 \item{.dirs}{Vector/List or single paths to directory/directories}
 
-\item{.reg}{RegEx to find files (defaults to '*' all files)}
+\item{.reg}{Regular Expression to find files (defaults to '*' all files)}
 
 \item{.id}{Column name containing the file name (defaults to 'doc_id')}
 
@@ -19,5 +19,5 @@ lft(.dirs, .reg = NULL, .id = "doc_id", .rec = FALSE)
 A dataframe with file paths
 }
 \description{
-List Files in Table
+Helper Function: List Files in Table
 }
