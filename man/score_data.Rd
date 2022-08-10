@@ -4,7 +4,13 @@
 \alias{score_data}
 \title{Score Data}
 \usage{
-score_data(.dir, .weights = NULL, .max_match = 10)
+score_data(
+  .dir,
+  .weights = NULL,
+  .max_match = 10,
+  .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw",
+    "soundex")
+)
 }
 \arguments{
 \item{.dir}{Directory to store Tables}
@@ -12,6 +18,8 @@ score_data(.dir, .weights = NULL, .max_match = 10)
 \item{.weights}{Weights}
 
 \item{.max_match}{Maximum number of matches}
+
+\item{.method}{c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")}
 }
 \value{
 A dataframe (saved in .dir)

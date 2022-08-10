@@ -243,7 +243,7 @@ match_group <- function(.lst, .max_match = 10,
                         .workers = floor(future::availableCores() / 4)) {
 
   # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  # source("test-debug/debug-match_col.R")
+  # source("_debug/debug-prep_tables.R")
 
   # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
   hash <- val <- hash_s <- hash_t <- Var1 <- Var2 <- value <- sim <- NULL
@@ -598,8 +598,15 @@ match_data <- function(.dir, .max_match = 10,
     future::plan("multisession", workers = .workers)
     tmp_match_ <- furrr::future_map_dfr(
       .x = lst_groups_,
-      .f = ~ match_group(filter_groups(.dir, .x), .max_match, method_, .workers),
-      .options = furrr::furrr_options(seed = TRUE),
+      .f = ~ match_group(
+        .lst = filter_groups(.dir, .x),
+        .max_match = .max_match,
+        .method = method_,
+        .workers = .workers
+        ),
+      .options = furrr::furrr_options(
+        seed = TRUE, globals = c("method_", ".max_match", ".workers")
+        ),
       .progress = .verbose,
       .id = "group"
     )
@@ -686,7 +693,7 @@ score_data <- function(.dir, .weights = NULL, .max_match = 10,
   }
 
   # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-  name <- weight <- col_new <- hash_s <- score <- NULL
+  name <- weight <- col_new <- hash_s <- score <- score_f1 <- NULL
 
   weight_ <- tibble::tibble(col_old = names(.weights), weight = .weights)
   names_ <- fst::read_fst(file.path(.dir, "tables", "snames.fst")) %>%
@@ -696,12 +703,20 @@ score_data <- function(.dir, .weights = NULL, .max_match = 10,
     dplyr::arrange(col_new)
 
   matches_ <- fst::read_fst(file.path(.dir, method_, "_matches.fst"))
-  int_ <- which(startsWith(colnames(matches_), "score"))
-  for (i in seq_len(length(int_))) {
-    matches_[, int_[i]] <- matches_[, int_[i]] * names_$weight[i]
+
+  if (length(.weights) == 1) {
+    scores_ <- dplyr::mutate(matches_, score = score_f1)
+  } else {
+    int_ <- which(startsWith(colnames(matches_), "score"))
+    for (i in seq_len(length(int_))) {
+      matches_[, int_[i]] <- matches_[, int_[i]] * names_$weight[i]
+    }
+
+    scores_ <- dplyr::mutate(matches_, score = rowSums(matches_[, int_], na.rm = TRUE))
   }
 
-  scores_ <- dplyr::mutate(matches_, score = rowSums(matches_[, int_], na.rm = TRUE)) %>%
+
+  scores_ <- scores_ %>%
     dtplyr::lazy_dt() %>%
     dplyr::group_by(hash_s) %>%
     dplyr::arrange(dplyr::desc(score), .by_group = TRUE) %>%
@@ -725,7 +740,7 @@ select_data <- function(.dir, .rank = 1,
                         .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
                         ) {
 
-  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
   hash <- val <- hash_s <- hash_t <- score <- . <- NULL
 
   # Match Arguments -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
@@ -735,7 +750,6 @@ select_data <- function(.dir, .rank = 1,
   scores_ <- fst::read_fst(file.path(.dir, method_, "_scores.fst"))
   sdata_ <- fst::read_fst(file.path(.dir, "tables", "sorig.fst")) %>%
     dplyr::select(hash_s = hash, dplyr::everything())
-
 
   tdata_ <- fst::read_fst(file.path(.dir, "tables", "torig.fst")) %>%
     dplyr::select(hash_t = hash, dplyr::everything())

@@ -4,12 +4,19 @@
 \alias{select_data}
 \title{Select Data}
 \usage{
-select_data(.dir, .rank = 1)
+select_data(
+  .dir,
+  .rank = 1,
+  .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw",
+    "soundex")
+)
 }
 \arguments{
 \item{.dir}{Directory to store Tables}
 
 \item{.rank}{Up to which rank should teh data be retrieved?}
+
+\item{.method}{c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")}
 }
 \value{
 A dataframe
