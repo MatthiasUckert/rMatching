@@ -617,19 +617,19 @@ score_data <- function(.dir, .weights = NULL, .max_match = 10) {
 #' Select Data
 #'
 #' @param .dir Directory to store Tables
-#' @param .rank Up to which rank should teh data be retrieved?
+#' @param .rank Up to which rank should the data be retrieved?
 #'
 #' @return A dataframe
 #' @export
 select_data <- function(.dir, .rank = 1) {
 
-  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
   hash <- val <- hash_s <- hash_t <- score <- . <- NULL
 
+  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
   scores_ <- fst::read_fst(file.path(.dir, "_scores.fst"))
-  sdata_ <- fst::read_fst(file.path(.dir, "tables", "sorig.fst")) %>%
+  sdata_  <- fst::read_fst(file.path(.dir, "tables", "sorig.fst")) %>%
     dplyr::select(hash_s = hash, dplyr::everything())
-
 
   tdata_ <- fst::read_fst(file.path(.dir, "tables", "torig.fst")) %>%
     dplyr::select(hash_t = hash, dplyr::everything())
