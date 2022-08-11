@@ -700,6 +700,7 @@ match_data <- function(
   msg_verbose("Finalizing output ...", .verbose)
   match_ <- dplyr::left_join(sim_, uni_, by = c("hash_s", "col")) %>%
     dplyr::mutate(score = sim * uni) %>%
+    dplyr::distinct(hash_s, hash_t, dplyr::across(dplyr::matches("^e\\d+$")), col, .keep_all = TRUE) %>%
     tidyr::pivot_wider(names_from = col, values_from = c(sim, uni, score)) %>%
     tibble::as_tibble()
 
