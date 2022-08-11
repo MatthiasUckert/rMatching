@@ -794,7 +794,7 @@ score_data <- function(
   } else {
 
     int_sco_ <- which(startsWith(colnames(matches_), "score"))
-    int_sim_ <- which(startsWith(colnames(matches_), "score"))
+    int_sim_ <- which(startsWith(colnames(matches_), "sim_"))
     for (i in seq_len(length(int_sco_))) {
       matches_[, int_sco_[i]] <- matches_[, int_sco_[i]] * weight_$weight[i]
     }
@@ -831,9 +831,9 @@ score_data <- function(
 #' Select Data
 #'
 #' @param .dir Directory to store Tables
-#' @param .rank Up to which rank should teh data be retrieved?
+#' @param .rank Up to which rank should the data be retrieved?
 #' @param .method c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
-#' @param score 1 for scoring including uniqness, 2 for scoreing only on similarity
+#' @param score 1 for scoring including uniqueness, 2 for scoreing only on similarity
 #'
 #' @return A dataframe
 #' @export
@@ -863,11 +863,24 @@ select_data <- function(
 
   names_ <- fst::read_fst(file.path(.dir, "tables", "snames.fst"))
 
-  scores_ %>%
-    dplyr::filter(rank <= .rank) %>%
-    tibble::as_tibble() %>%
-    dplyr::select(hash_s, hash_t, score, dplyr::starts_with("e")) %>%
-    dplyr::left_join(sdata_, by = "hash_s", suffix = c("_s", "_t")) %>%
-    dplyr::left_join(tdata_, by = "hash_t", suffix = c("_s", "_t")) %>%
-    `colnames<-`(stringi::stri_replace_all_regex(colnames(.), paste0("^", names_$col_new, "$"), names_$col_old, FALSE))
-}
+
+  if (.score == 1) {
+    scores_ %>%
+      dplyr::filter(rank1 <= .rank) %>%
+      tibble::as_tibble() %>%
+      dplyr::select(hash_s, hash_t, score, dplyr::starts_with("e")) %>%
+      dplyr::left_join(sdata_, by = "hash_s", suffix = c("_s", "_t")) %>%
+      dplyr::left_join(tdata_, by = "hash_t", suffix = c("_s", "_t")) %>%
+      `colnames<-`(stringi::stri_replace_all_regex(colnames(.), paste0("^", names_$col_new, "$"), names_$col_old, FALSE))
+
+  } else {
+    scores_ %>%
+      dplyr::filter(rank2 <= .rank) %>%
+      tibble::as_tibble() %>%
+      dplyr::select(hash_s, hash_t, score, dplyr::starts_with("e")) %>%
+      dplyr::left_join(sdata_, by = "hash_s", suffix = c("_s", "_t")) %>%
+      dplyr::left_join(tdata_, by = "hash_t", suffix = c("_s", "_t")) %>%
+      `colnames<-`(stringi::stri_replace_all_regex(colnames(.), paste0("^", names_$col_new, "$"), names_$col_old, FALSE))
+
+  }
+  }
