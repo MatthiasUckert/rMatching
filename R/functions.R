@@ -63,7 +63,7 @@ msg_verbose <- function(.msg, .verbose) {
   n_ <- 80 - nchar(.msg)
   msg_ <- paste0("\n", .msg, paste(rep(" ", n_), collapse = ""))
 
-  if(.verbose) message(msg_)
+  if (.verbose) message(msg_)
 }
 
 #' Helper Function: Check for named vector
