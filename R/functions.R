@@ -610,7 +610,9 @@ match_data <- function(
 
   if (file.exists(path_matches_)) {
     msg_verbose("Matching exists already, it won't be recalculated", .verbose)
-    return(NULL)
+    if (.return) {
+      return(fst::read_fst(path_scores_))
+    }
   }
 
   # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -759,7 +761,9 @@ score_data <- function(
   path_scores_ <- file.path(.dir, method_, "_scores.fst")
   if (file.exists(path_scores_)) {
     msg_verbose("Scoring exists already, it won't be recalculated", .verbose)
-    return(NULL)
+    if (.return) {
+      return(fst::read_fst(path_scores_))
+    }
   }
 
   # Get weights -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
@@ -786,7 +790,7 @@ score_data <- function(
   } else {
     int_ <- which(startsWith(colnames(matches_), "score"))
     for (i in seq_len(length(int_))) {
-      matches_[, int_[i]] <- matches_[, int_[i]] * names_$weight[i]
+      matches_[, int_[i]] <- matches_[, int_[i]] * weight_$weight[i]
     }
 
     scores_ <- dplyr::mutate(matches_, score = rowSums(matches_[, int_], na.rm = TRUE))
