@@ -811,10 +811,12 @@ score_data <- function(
   scores_ <- scores_ %>%
     dtplyr::lazy_dt() %>%
     dplyr::group_by(hash_s) %>%
-    dplyr::arrange(dplyr::desc(score), .by_group = TRUE) %>%
-    dplyr::mutate(rank = dplyr::row_number()) %>%
+    dplyr::arrange(dplyr::desc(score1), .by_group = TRUE) %>%
+    dplyr::mutate(rank1 = dplyr::row_number()) %>%
+    dplyr::arrange(dplyr::desc(score2), .by_group = TRUE) %>%
+    dplyr::mutate(rank2 = dplyr::row_number()) %>%
     dplyr::ungroup() %>%
-    dplyr::filter(rank <= .max_match) %>%
+    dplyr::filter(rank1 <= .max_match | rank2 <= .max_match) %>%
     tibble::as_tibble()
 
   fst::write_fst(scores_, path_scores_, 100)
@@ -831,13 +833,15 @@ score_data <- function(
 #' @param .dir Directory to store Tables
 #' @param .rank Up to which rank should teh data be retrieved?
 #' @param .method c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
+#' @param score 1 for scoring including uniqness, 2 for scoreing only on similarity
 #'
 #' @return A dataframe
 #' @export
 select_data <- function(
     .dir,
     .rank = 1,
-    .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
+    .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex"),
+    .score = c(1, 2)
     ) {
 
   # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
