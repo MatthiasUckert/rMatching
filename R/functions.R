@@ -42,7 +42,7 @@ filter_dups <- function(.tab, ...) {
   vars_ <- dplyr::enquos(...)
   .tab %>%
     dtplyr::lazy_dt() %>%
-    dplyr::mutate(`_tmp_` = paste0(!!!vars_)) %>%
+    dplyr::mutate(`_tmp_` = paste(!!!vars_, sep = "<><><>")) %>%
     dplyr::filter(duplicated(`_tmp_`) | duplicated(`_tmp_`, fromLast = TRUE)) %>%
     dplyr::arrange(`_tmp_`) %>%
     dplyr::group_by(`_tmp_`) %>%
