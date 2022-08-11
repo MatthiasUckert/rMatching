@@ -695,7 +695,7 @@ match_data <- function(
   uni_ <- sim_ %>%
     dplyr::arrange(hash_s, col) %>%
     dplyr::group_by(hash_s, col) %>%
-    dplyr::summarise(uni = mean(sim, na.rm = TRUE), .groups = "drop_last") %>%
+    dplyr::summarise(uni = 1 - mean(sim, na.rm = TRUE), .groups = "drop_last") %>%
     dplyr::mutate(uni = uni / sum(uni)) %>%
     dplyr::ungroup()
 
@@ -786,15 +786,26 @@ score_data <- function(
 
 
   if (length(.weights) == 1) {
-    scores_ <- dplyr::mutate(matches_, score = score_f1)
+    scores_ <- matches_ %>%
+      dplyr::mutate(
+        score1 = score_f1,
+        score2 = sim_f1
+      )
   } else {
-    int_ <- which(startsWith(colnames(matches_), "score"))
-    for (i in seq_len(length(int_))) {
-      matches_[, int_[i]] <- matches_[, int_[i]] * weight_$weight[i]
+
+    int_sco_ <- which(startsWith(colnames(matches_), "score"))
+    int_sim_ <- which(startsWith(colnames(matches_), "score"))
+    for (i in seq_len(length(int_sco_))) {
+      matches_[, int_sco_[i]] <- matches_[, int_sco_[i]] * weight_$weight[i]
     }
 
-    scores_ <- dplyr::mutate(matches_, score = rowSums(matches_[, int_], na.rm = TRUE))
+    scores_ <- matches_ %>%
+      dplyr::mutate(
+        score1 = rowSums(matches_[, int_sco_], na.rm = TRUE),
+        score2 = rowMeans(matches_[, int_sim_], na.rm = TRUE)
+      )
   }
+
 
 
   scores_ <- scores_ %>%
