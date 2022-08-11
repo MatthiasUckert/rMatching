@@ -53,6 +53,19 @@ filter_dups <- function(.tab, ...) {
 }
 
 
+#' Helper Function: Print Messages
+#'
+#' @param .msg A character string
+#' @param .verbose TRUE/FALSE
+#'
+#' @return A message
+msg_verbose <- function(.msg, .verbose) {
+  n_ <- 80 - nchar(.msg)
+  msg_ <- paste0("\n", .msg, paste(rep(" ", n_), collapse = ""))
+
+  if(.verbose) message(msg_)
+}
+
 #' Helper Function: Check for named vector
 #'
 #' @param .tab
@@ -197,8 +210,6 @@ make_groups <- function(.dir, .range = Inf) {
 
   # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
   nct <- ncs <- ns <- nt <- size <- NULL
-
-
 
   sgroups <- fst::read_fst(file.path(.dir, "sgroup.fst"))
   tgroups <- fst::read_fst(file.path(.dir, "tgroup.fst"))
@@ -356,6 +367,53 @@ get_method_names <- function() {
   purrr::set_names(methods_, methods_)
 }
 
+#' Standardize Strings
+#'
+#' Description
+#'
+#' @param .str A character vector
+#' @param .op Any of c("space", "punct", "case", "ascii")
+#'
+#' @return A string
+#' @export
+#'
+#' @examples
+#' standardize_str(c("jkldsa   jkdhas   sa  §$ ## #'''"))
+#' standardize_str(c("jkldsa   jkdhas   fsd  §$ ## #'''"), "space")
+standardize_str <- function(.str, .op = c("space", "punct", "case", "ascii")) {
+
+  # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+  str_ <- .str
+
+  if ("punct" %in% .op) {
+    str_ <- trimws(stringi::stri_replace_all_regex(str_, "\\W", " "))
+    str_ <- trimws(stringi::stri_replace_all_regex(str_, "[[:punct:]]", " "))
+
+    if (!"space" %in% .op) {
+      str_ <- trimws(stringi::stri_replace_all_regex(str_, "([[:blank:]]|[[:space:]])+", " "))
+    }
+  }
+
+  if ("space" %in% .op) {
+    str_ <- trimws(stringi::stri_replace_all_regex(str_, "([[:blank:]]|[[:space:]])+", " "))
+  }
+
+  if ("case" %in% .op) {
+    str_ <- toupper(str_)
+  }
+
+  if ("ascii" %in% .op) {
+    str_ <- gsub("Ü", "UE", str_, fixed = TRUE)
+    str_ <- gsub("Ä", "AE", str_, fixed = TRUE)
+    str_ <- gsub("Ö", "OE", str_, fixed = TRUE)
+    str_ <- gsub("ß", "SS", str_, fixed = TRUE)
+    str_ <- stringi::stri_trans_general(str_, "Latin-ASCII")
+  }
+
+  return(str_)
+}
+
+
 #' Extract Legal Forms
 #'
 #' Description
@@ -369,7 +427,8 @@ get_method_names <- function() {
 #'
 #' @export
 extract_legal_form <- function(
-    .tab, .col, .legal_forms = data.frame(),.workers = future::availableCores()
+    .tab, .col, .legal_forms = data.frame(),
+    .workers = future::availableCores() / 2
 ) {
 
   # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
@@ -439,104 +498,76 @@ extract_legal_form <- function(
     dplyr::relocate(lfid, .after = lfs)
 }
 
-#' Standardize Strings
-#'
-#' Description
-#'
-#' @param .str A character vector
-#' @param .op Any of c("space", "punct", "case", "ascii")
-#'
-#' @return A string
-#' @export
-#'
-#' @examples
-#' standardize_str(c("jkldsa   jkdhas   sa  §$ ## #'''"))
-#' standardize_str(c("jkldsa   jkdhas   fsd  §$ ## #'''"), "space")
-standardize_str <- function(.str, .op = c("space", "punct", "case", "ascii")) {
-
-  # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  str_ <- .str
-
-  if ("punct" %in% .op) {
-    str_ <- trimws(stringi::stri_replace_all_regex(str_, "\\W", " "))
-    str_ <- trimws(stringi::stri_replace_all_regex(str_, "[[:punct:]]", " "))
-
-    if (!"space" %in% .op) {
-      str_ <- trimws(stringi::stri_replace_all_regex(str_, "([[:blank:]]|[[:space:]])+", " "))
-    }
-  }
-
-  if ("space" %in% .op) {
-    str_ <- trimws(stringi::stri_replace_all_regex(str_, "([[:blank:]]|[[:space:]])+", " "))
-  }
-
-  if ("case" %in% .op) {
-    str_ <- toupper(str_)
-  }
-
-  if ("ascii" %in% .op) {
-    str_ <- gsub("Ü", "UE", str_, fixed = TRUE)
-    str_ <- gsub("Ä", "AE", str_, fixed = TRUE)
-    str_ <- gsub("Ö", "OE", str_, fixed = TRUE)
-    str_ <- gsub("ß", "SS", str_, fixed = TRUE)
-    str_ <- stringi::stri_trans_general(str_, "Latin-ASCII")
-  }
-
-  return(str_)
-}
-
 #' Prepare Tables for Matching
 #'
-#' @param .source Source Dataframe
-#' @param .target Target Dataframe
+#' @param .source
+#' Source Dataframe
+#' @param .target
+#' Target Dataframe
 #' @param .cols
 #' A named character, with the columns names as string you want to match.\cr
 #' The vector must be named wit either fuzzy (f) of exact (e).
 #' @param .fstd
-#' Standardization Function
+#' Standardization Function (Default: standardize_str())
 #' @param .dir
 #' Directory to store Tables
 #' @param .range
-#' Character range
+#' A range of characters as an integer, e.g. the name of the source dataframe is 5 characters long and the
+#' .range argument is 3, then all names in the target dataframe between 2 - 8 characters are used for the matching
+#' @param .return
+#' Return a saved file(s)?
+#' @param .verbose
+#' Print additional Information? (Default: TRUE)
 #'
 #' @return Dataframes (saved in .dir)
 #'
 #' @export
-prep_tables <- function(.source, .target, .cols, .fstd = standardize_str, .dir, .range = Inf) {
+prep_tables <- function(.source, .target, .cols, .fstd = standardize_str, .dir,
+                        .range = Inf, .return = FALSE, .verbose = TRUE) {
 
   # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  # source("_debug/debug-prep_tables.R")
+  # source("_debug_vars/debug-prep_tables.R")
 
+  # Create Directory -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+  dir.create(.dir, FALSE, TRUE)
 
+  fs_tab_ <- file.path(.dir, "tables")
 
-  if (dir.exists(file.path(.dir, "tables"))) {
-    expect_ <- tibble::tibble(
-      doc_id = c(
-        paste0("s", c("data", "dups", "group", "names", "orig")),
-        paste0("t", c("data", "dups", "group", "names", "orig")),
-        "_groups"
-      ),
-      check = 1
-    )
-    fils_ <- dplyr::full_join(lft(file.path(.dir, "tables")), expect_, by = "doc_id")
-    nas_ <- sum(is.na(fils_$path))
-    if (nas_ > 0 & nas_ < 11) {
-      stop(".dir contains fils but is incomplete")
+  if (dir.exists(fs_tab_)) {
+    # Check if files already exist
+    nm_ <- c("data", "dups", "group", "names", "orig")
+    ex_ <- tibble::tibble(doc_id = c(paste0("s", nm_), paste0("t", nm_), "_groups"))
+    fs_ <- dplyr::full_join(lft(fs_tab_), ex_, by = "doc_id")
+    na_ <- sum(is.na(fs_$path))
+
+    # If files are present but incomplete throw and error
+    if (na_ > 0 & na_ < 11) {
+      stop(".dir contains files but is incomplete", call. = FALSE)
     }
 
-    if (all(expect_$doc_id %in% fils_$doc_id)) {
-      message("Data is already complete")
+    # If files are complete, notify
+    if (all(ex_$doc_id %in% fs_$doc_id)) {
+      msg_verbose("Stored data is complete, tables won't be prepared again", .verbose)
     }
+
+
   } else {
 
-    message("\nPreparing Source Table ...                                     ")
+    msg_verbose("Preparing Source Table ...", .verbose)
     prep_table(.tab = .source, .cols = .cols, .fstd = .fstd, .dir = .dir, .type = "s")
 
-    message("\nPreparing Source Table ...                                     ")
+    msg_verbose("Preparing Target Table ...", .verbose)
     prep_table(.tab = .target, .cols = .cols, .fstd = .fstd, .dir = .dir, .type = "t")
 
-    message("\nCalculating Groups ...                                         ")
+    msg_verbose("Calculating Groups ...", .verbose)
     make_groups(.dir = file.path(.dir, "tables"), .range = .range)
+  }
+
+  if (.return) {
+    fil_ <- lft(fs_tab_)
+    return(purrr::map(purrr::set_names(fil_$path, fil_$doc_id), fst::read_fst))
+  } else {
+    msg_verbose("Data is stored ...", .verbose)
   }
 
 }
@@ -549,40 +580,49 @@ prep_tables <- function(.source, .target, .cols, .fstd = standardize_str, .dir, 
 #' @param .max_match MAximum number of matches
 #' @param .method c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
 #' @param .workers Workers to use
-#' @param .verbose TRUE/FALSE
+#' @param .return
+#' Return a saved file(s)?
+#' @param .verbose
+#' Print additional Information? (Default: TRUE)
 #'
 #' @import data.table
 #'
 #' @return A dataframe (saved in .dir)
 #' @export
-match_data <- function(.dir, .max_match = 10,
-                       .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex"),
-                       .workers = floor(future::availableCores() / 4), .verbose = TRUE) {
+match_data <- function(
+    .dir, .max_match = 10,
+    .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex"),
+    .workers = floor(future::availableCores() / 4),
+    .return = FALSE,
+    .verbose = TRUE
+    ) {
 
   # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  # source("_debug/debug-match_data.R")
+  # source("_debug_vars/debug-match_data.R")
 
   # Match Arguments -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
   choices_ <- c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
   method_ <- match.arg(.method, choices_)
 
-  # Check if Match already existis -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
+  # Check if Matching already exists -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
   path_matches_ <- file.path(.dir, method_, "_matches.fst")
   dir.create(dirname(path_matches_), FALSE, TRUE)
 
   if (file.exists(path_matches_)) {
-    message("Matching exists already")
+    msg_verbose("Matching exists already, it won't be recalculated", .verbose)
     return(NULL)
   }
 
   # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
   group <- sim <- hash <- val <- vals <- valt <- hash_s <- hash_t <- uni <- score <- NULL
 
-  tab_groups_ <- dplyr::mutate(fst::read.fst(file.path(.dir, "tables", "_groups.fst")), group = dplyr::row_number())
+  # Reading Groups -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+  fil_groups_ <- file.path(.dir, "tables", "_groups.fst")
+  tab_groups_ <- dplyr::mutate(fst::read.fst(fil_groups_), group = dplyr::row_number())
   lst_groups_ <- split(tab_groups_, seq_len(nrow(tab_groups_)))
 
-
-  if (.verbose) cat("\nStart Matching ...")
+  # Start Matching -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+  msg_verbose("Matching source table to target table ...", .verbose)
   pb <- if (.verbose) progress::progress_bar$new(total = length(lst_groups_))
 
   if (.workers == 1) {
@@ -605,7 +645,11 @@ match_data <- function(.dir, .max_match = 10,
         .workers = .workers
         ),
       .options = furrr::furrr_options(
-        seed = TRUE, globals = c("method_", ".max_match", ".workers")
+        seed = TRUE,
+        globals = c(
+          "method_", ".max_match", ".workers", "match_group", "filter_groups",
+          ".dir", "filter_fst_adj"
+          )
         ),
       .progress = .verbose,
       .id = "group"
@@ -614,10 +658,12 @@ match_data <- function(.dir, .max_match = 10,
     on.exit(future::plan("default"))
   }
 
+  # Read Transormed Data -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
   sdata <- fst::read_fst(file.path(file.path(.dir, "tables"), "sdata.fst"))
   tdata <- fst::read_fst(file.path(file.path(.dir, "tables"), "tdata.fst"))
 
-  message("\nAdjusting Similarity ...                                         ")
+
+  msg_verbose("Adjusting similarity scores", .verbose)
   sim_ <- tmp_match_ %>%
     dtplyr::lazy_dt() %>%
     dplyr::filter(!is.na(hash_s), !is.na(hash_t)) %>%
@@ -643,7 +689,7 @@ match_data <- function(.dir, .max_match = 10,
     ) %>%
     dplyr::select(-vals, -valt)
 
-  message("\nCalculating Uniquness ...                                         ")
+  msg_verbose("Calculating uniqness scores", .verbose)
   uni_ <- sim_ %>%
     dplyr::arrange(hash_s, col) %>%
     dplyr::group_by(hash_s, col) %>%
@@ -651,7 +697,7 @@ match_data <- function(.dir, .max_match = 10,
     dplyr::mutate(uni = uni / sum(uni)) %>%
     dplyr::ungroup()
 
-  message("\nFinalizing Files ...                                             ")
+  msg_verbose("Finalizing output ...", .verbose)
   match_ <- dplyr::left_join(sim_, uni_, by = c("hash_s", "col")) %>%
     dplyr::mutate(score = sim * uni) %>%
     tidyr::pivot_wider(names_from = col, values_from = c(sim, uni, score)) %>%
@@ -659,50 +705,80 @@ match_data <- function(.dir, .max_match = 10,
 
 
   fst::write_fst(match_, path_matches_)
-  return(NULL)
+
+  if (.return) {
+    return(match_)
+  } else {
+    msg_verbose("Data is stored ...", .verbose)
+  }
+
 }
 
 
 #' Score Data
 #'
-#' @param .dir Directory to store Tables
-#' @param .weights Weights
-#' @param .max_match Maximum number of matches
-#' @param .method c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
+#' @param .dir
+#' Directory to store Tables
+#' @param .weights
+#' A named vector with weight, if null all columns will be equal weighted
+#' @param .max_match
+#' Maximum number of matches
+#' @param .method
+#' c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
+#' @param .return
+#' Return a saved file(s)?
+#' @param .verbose
+#' Print additional Information? (Default: TRUE)
+#'
 #'
 #' @import data.table
 #'
 #' @return A dataframe (saved in .dir)
 #' @export
-score_data <- function(.dir, .weights = NULL, .max_match = 10,
-                       .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
-                       ) {
+score_data <- function(
+    .dir,
+    .weights = NULL,
+    .max_match = 10,
+    .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex"),
+    .return = FALSE,
+    .verbose = TRUE
+    ) {
 
   # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  # source("_debug/debug-score_data.R")
+  # source("_debug_vars/debug-score_data.R")
+
+  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+  name <- weight <- col_new <- hash_s <- score <- score_f1 <- NULL
 
   # Match Arguments -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
   choices_ <- c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
   method_ <- match.arg(.method, choices_)
 
+  # Check if Matching already exists -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
   path_scores_ <- file.path(.dir, method_, "_scores.fst")
-
   if (file.exists(path_scores_)) {
-    message("Scoring exists already")
+    msg_verbose("Scoring exists already, it won't be recalculated", .verbose)
     return(NULL)
   }
 
-  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-  name <- weight <- col_new <- hash_s <- score <- score_f1 <- NULL
-
-  weight_ <- tibble::tibble(col_old = names(.weights), weight = .weights)
+  # Get weights -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
   names_ <- fst::read_fst(file.path(.dir, "tables", "snames.fst")) %>%
-    dplyr::filter(name == "f") %>%
-    dplyr::left_join(weight_, by = "col_old") %>%
-    dplyr::mutate(weight = weight / sum(weight)) %>%
-    dplyr::arrange(col_new)
+    dplyr::filter(name == "f")
+  if (!is.null(.weights)) {
+    weight_ <- tibble::tibble(col_old = names(.weights), weight = .weights)
+    weight_ <- names_ %>%
+      dplyr::left_join(weight_, by = "col_old") %>%
+      dplyr::mutate(weight = weight / sum(weight)) %>%
+      dplyr::arrange(col_new)
+  } else {
+    weight_ <- names_ %>%
+      dplyr::mutate(weight = 1 / dplyr::n()) %>%
+      dplyr::arrange(col_new)
+  }
 
+  # Read Matches -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
   matches_ <- fst::read_fst(file.path(.dir, method_, "_matches.fst"))
+
 
   if (length(.weights) == 1) {
     scores_ <- dplyr::mutate(matches_, score = score_f1)
@@ -726,6 +802,12 @@ score_data <- function(.dir, .weights = NULL, .max_match = 10,
     tibble::as_tibble()
 
   fst::write_fst(scores_, path_scores_, 100)
+
+  if (.return) {
+    return(scores_)
+  } else {
+    msg_verbose("Data is stored ...", .verbose)
+  }
 }
 
 #' Select Data
@@ -736,9 +818,14 @@ score_data <- function(.dir, .weights = NULL, .max_match = 10,
 #'
 #' @return A dataframe
 #' @export
-select_data <- function(.dir, .rank = 1,
-                        .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
-                        ) {
+select_data <- function(
+    .dir,
+    .rank = 1,
+    .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
+    ) {
+
+  # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+  # source("_debug_vars/debug-select_data.R")
 
   # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
   hash <- val <- hash_s <- hash_t <- score <- . <- NULL

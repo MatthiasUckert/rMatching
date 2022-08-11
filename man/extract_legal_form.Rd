@@ -8,7 +8,7 @@ extract_legal_form(
   .tab,
   .col,
   .legal_forms = data.frame(),
-  .workers = future::availableCores()
+  .workers = future::availableCores()/2
 )
 }
 \arguments{

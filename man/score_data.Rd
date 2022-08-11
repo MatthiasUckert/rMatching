@@ -9,17 +9,23 @@ score_data(
   .weights = NULL,
   .max_match = 10,
   .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw",
-    "soundex")
+    "soundex"),
+  .return = FALSE,
+  .verbose = TRUE
 )
 }
 \arguments{
 \item{.dir}{Directory to store Tables}
 
-\item{.weights}{Weights}
+\item{.weights}{A named vector with weight, if null all columns will be equal weighted}
 
 \item{.max_match}{Maximum number of matches}
 
 \item{.method}{c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")}
+
+\item{.return}{Return a saved file(s)?}
+
+\item{.verbose}{Print additional Information? (Default: TRUE)}
 }
 \value{
 A dataframe (saved in .dir)

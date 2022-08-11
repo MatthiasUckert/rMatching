@@ -2,7 +2,8 @@
 ^\.Rproj\.user$
 ^data-raw$
 ^LICENSE\.md$
-_debug
+_debug_vars
+_debug_data0
 _debug_data1
 _debug_data2
 _benchmarks

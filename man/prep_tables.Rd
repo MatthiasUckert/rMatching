@@ -10,7 +10,9 @@ prep_tables(
   .cols,
   .fstd = standardize_str,
   .dir,
-  .range = Inf
+  .range = Inf,
+  .return = FALSE,
+  .verbose = TRUE
 )
 }
 \arguments{
@@ -21,11 +23,16 @@ prep_tables(
 \item{.cols}{A named character, with the columns names as string you want to match.\cr
 The vector must be named wit either fuzzy (f) of exact (e).}
 
-\item{.fstd}{Standardization Function}
+\item{.fstd}{Standardization Function (Default: standardize_str())}
 
 \item{.dir}{Directory to store Tables}
 
-\item{.range}{Character range}
+\item{.range}{A range of characters as an integer, e.g. the name of the source dataframe is 5 characters long and the
+.range argument is 3, then all names in the target dataframe between 2 - 8 characters are used for the matching}
+
+\item{.return}{Return a saved file(s)?}
+
+\item{.verbose}{Print additional Information? (Default: TRUE)}
 }
 \value{
 Dataframes (saved in .dir)

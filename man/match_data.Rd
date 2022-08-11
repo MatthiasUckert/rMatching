@@ -10,6 +10,7 @@ match_data(
   .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw",
     "soundex"),
   .workers = floor(future::availableCores()/4),
+  .return = FALSE,
   .verbose = TRUE
 )
 }
@@ -22,7 +23,9 @@ match_data(
 
 \item{.workers}{Workers to use}
 
-\item{.verbose}{TRUE/FALSE}
+\item{.return}{Return a saved file(s)?}
+
+\item{.verbose}{Print additional Information? (Default: TRUE)}
 }
 \value{
 A dataframe (saved in .dir)
