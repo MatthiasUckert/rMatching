@@ -865,22 +865,16 @@ select_data <- function(
 
 
   if (.score == 1) {
-    scores_ %>%
-      dplyr::filter(rank1 <= .rank) %>%
-      tibble::as_tibble() %>%
-      dplyr::select(hash_s, hash_t, score, dplyr::starts_with("e")) %>%
-      dplyr::left_join(sdata_, by = "hash_s", suffix = c("_s", "_t")) %>%
-      dplyr::left_join(tdata_, by = "hash_t", suffix = c("_s", "_t")) %>%
-      `colnames<-`(stringi::stri_replace_all_regex(colnames(.), paste0("^", names_$col_new, "$"), names_$col_old, FALSE))
-
+    tmp_ <- dplyr::filter(scores_, rank1 <= .rank)
   } else {
-    scores_ %>%
-      dplyr::filter(rank2 <= .rank) %>%
-      tibble::as_tibble() %>%
-      dplyr::select(hash_s, hash_t, score, dplyr::starts_with("e")) %>%
-      dplyr::left_join(sdata_, by = "hash_s", suffix = c("_s", "_t")) %>%
-      dplyr::left_join(tdata_, by = "hash_t", suffix = c("_s", "_t")) %>%
-      `colnames<-`(stringi::stri_replace_all_regex(colnames(.), paste0("^", names_$col_new, "$"), names_$col_old, FALSE))
-
+    tmp_ <- dplyr::filter(scores_, rank2 <= .rank)
   }
+
+  tmp_ %>%
+    dplyr::filter(rank1 <= .rank) %>%
+    tibble::as_tibble() %>%
+    dplyr::select(hash_s, hash_t, score1, score2, dplyr::starts_with("e")) %>%
+    dplyr::left_join(sdata_, by = "hash_s", suffix = c("_s", "_t")) %>%
+    dplyr::left_join(tdata_, by = "hash_t", suffix = c("_s", "_t")) %>%
+    `colnames<-`(stringi::stri_replace_all_regex(colnames(.), paste0("^", names_$col_new, "$"), names_$col_old, FALSE))
   }
