@@ -871,7 +871,6 @@ select_data <- function(
   }
 
   tmp_ %>%
-    dplyr::filter(rank1 <= .rank) %>%
     tibble::as_tibble() %>%
     dplyr::select(hash_s, hash_t, score1, score2, dplyr::starts_with("e")) %>%
     dplyr::left_join(sdata_, by = "hash_s", suffix = c("_s", "_t")) %>%
