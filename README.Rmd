@@ -181,7 +181,7 @@ head(tab_source_lf, 3)
 
 
 ```{r}
-head(tab_target_lf, 3)
+head(tab_target_lf, 3) 
 ```
 
 Now we use the name_adj column for the matching which is the company name without its legal form.

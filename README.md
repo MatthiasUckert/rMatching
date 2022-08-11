@@ -96,7 +96,10 @@ prep_tables(
   .dir = "_debug_data1",
   .range = 10
 )
-#> Data is already complete
+#> 
+#> Stored data is complete, tables won't be prepared again
+#> 
+#> Data is stored ...
 ```
 
 The relevant tables are stored in the directory (.dir)
@@ -137,7 +140,8 @@ match_data(
   .workers = 4,
   .verbose = TRUE
 )
-#> Matching exists already
+#> 
+#> Matching exists already, it won't be recalculated
 #> NULL
 ```
 
@@ -145,16 +149,26 @@ Here we match over all methods
 
 ``` r
 purrr::walk(get_method_names(), ~ match_data("_debug_data1", 20, .x, 4, TRUE))
-#> Matching exists already
-#> Matching exists already
-#> Matching exists already
-#> Matching exists already
-#> Matching exists already
-#> Matching exists already
-#> Matching exists already
-#> Matching exists already
-#> Matching exists already
-#> Matching exists already
+#> 
+#> Matching exists already, it won't be recalculated                               
+#> 
+#> Matching exists already, it won't be recalculated                               
+#> 
+#> Matching exists already, it won't be recalculated                               
+#> 
+#> Matching exists already, it won't be recalculated                               
+#> 
+#> Matching exists already, it won't be recalculated                               
+#> 
+#> Matching exists already, it won't be recalculated                               
+#> 
+#> Matching exists already, it won't be recalculated                               
+#> 
+#> Matching exists already, it won't be recalculated                               
+#> 
+#> Matching exists already, it won't be recalculated                               
+#> 
+#> Matching exists already, it won't be recalculated
 ```
 
 ## Step 3: Score Data
@@ -170,7 +184,8 @@ score_data(
   .max_match = 20,
   .method = "osa"
 )
-#> Scoring exists already
+#> 
+#> Scoring exists already, it won't be recalculated
 #> NULL
 ```
 
@@ -178,16 +193,26 @@ Here we score over all methods
 
 ``` r
 purrr::walk(get_method_names(), ~ score_data("_debug_data1", w, 20, .x))
-#> Scoring exists already
-#> Scoring exists already
-#> Scoring exists already
-#> Scoring exists already
-#> Scoring exists already
-#> Scoring exists already
-#> Scoring exists already
-#> Scoring exists already
-#> Scoring exists already
-#> Scoring exists already
+#> 
+#> Scoring exists already, it won't be recalculated                                
+#> 
+#> Scoring exists already, it won't be recalculated                                
+#> 
+#> Scoring exists already, it won't be recalculated                                
+#> 
+#> Scoring exists already, it won't be recalculated                                
+#> 
+#> Scoring exists already, it won't be recalculated                                
+#> 
+#> Scoring exists already, it won't be recalculated                                
+#> 
+#> Scoring exists already, it won't be recalculated                                
+#> 
+#> Scoring exists already, it won't be recalculated                                
+#> 
+#> Scoring exists already, it won't be recalculated                                
+#> 
+#> Scoring exists already, it won't be recalculated
 ```
 
 ## Step 4: Score Data
@@ -260,7 +285,7 @@ head(tab_source_lf, 3)
 ```
 
 ``` r
-head(tab_target_lf, 3)
+head(tab_target_lf, 3) 
 #> # A tibble: 3 x 10
 #>   id       name          name_adj name_std iso3  city  address lfo   lfs   lfid 
 #>   <chr>    <chr>         <chr>    <chr>    <chr> <chr> <chr>   <chr> <chr> <chr>
@@ -283,7 +308,10 @@ prep_tables(
   .dir = "_debug_data2",
   .range = 10
 )
-#> Data is already complete
+#> 
+#> Stored data is complete, tables won't be prepared again
+#> 
+#> Data is stored ...
 ```
 
 ``` r
@@ -294,7 +322,8 @@ match_data(
   .workers = 4,
   .verbose = TRUE
 )
-#> Matching exists already
+#> 
+#> Matching exists already, it won't be recalculated
 #> NULL
 ```
 
@@ -306,7 +335,8 @@ score_data(
   .max_match = 20,
   .method = "jw"
 )
-#> Scoring exists already
+#> 
+#> Scoring exists already, it won't be recalculated
 #> NULL
 ```
 
