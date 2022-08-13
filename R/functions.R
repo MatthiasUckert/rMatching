@@ -612,6 +612,8 @@ match_data <- function(
     msg_verbose("Matching exists already, it won't be recalculated", .verbose)
     if (.return) {
       return(fst::read_fst(path_scores_))
+    } else {
+      return(NULL)
     }
   }
 
@@ -763,6 +765,8 @@ score_data <- function(
     msg_verbose("Scoring exists already, it won't be recalculated", .verbose)
     if (.return) {
       return(fst::read_fst(path_scores_))
+    } else {
+      return(NULL)
     }
   }
 
