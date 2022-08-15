@@ -4,12 +4,12 @@
 \alias{filter_groups}
 \title{Helper Function: Filter data from fst files}
 \usage{
-filter_groups(.dir, .row)
+filter_groups(.dir, .group)
 }
 \arguments{
 \item{.dir}{Directory to store Tables}
 
-\item{.row}{One row corrsponds to a group}
+\item{.group}{One row corrsponds to a group}
 }
 \value{
 Filtered Dataframe

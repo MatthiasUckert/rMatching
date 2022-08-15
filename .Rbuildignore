@@ -3,9 +3,7 @@
 ^data-raw$
 ^LICENSE\.md$
 _debug_vars
-_debug_data0
-_debug_data1
-_debug_data2
+_debug_data
 _benchmarks
 _scripts
 _vignettes

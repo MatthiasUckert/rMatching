@@ -1,4 +1,50 @@
 # Helper Functions -------------------------------------------------------------
+check_id <- function(.tab, .col, .type = c("s", "t")) {
+  check_ <- .col %in% colnames(.tab)
+  type_ <- match.arg(.type, c("s", "t"))
+  type_ <- ifelse(type_ == "s", ".source", ".target")
+
+  if (!check_) {
+    msg_ <- glue::glue("{type_} dataframe must contain column '{.col}'")
+    stop(msg_, call. = FALSE)
+  }
+}
+
+check_dups <- function(.tab, .col) {
+  check_ <- any(duplicated(.tab[[.col]]))
+  if (check_) {
+    msg_ <- glue::glue("Column '{.col}' must not have duplicates")
+    stop(msg_, call. = FALSE)
+  }
+}
+
+check_matching_cols <- function(.path, .cols, .type = c("s", "t")) {
+  cols_ <- fst::metadata_fst(.path)[["columnNames"]]
+  type_ <- match.arg(.type, c("s", "t"))
+  type_ <- ifelse(type_ == "s", ".source", ".target")
+
+
+  if (!all(.cols %in% cols_)) {
+    msg_ <- glue::glue("Not all matching columns are present in the {type_} dataframe")
+    stop(msg_, call. = FALSE)
+  }
+}
+
+check_names <- function(.cols) {
+  names_ <- names(.cols)
+  if (!all(tolower(names_) %in% c("fuzzy", "exact", "e", "f"))) {
+    msg_ <- paste0(
+      "\nArgument '.cols' must have names.",
+      "\nExact Matching: 'exact' or 'e'",
+      "\nFuzzy Matching: 'fuzzy' or 'd'",
+      "\nNames are case insenstive, both full name or first letter are possibe"
+    )
+    stop(msg_, call. = FALSE)
+  }
+}
+
+
+
 #' Helper Function: List Files in Table
 #'
 #' @param .dirs Vector/List or single paths to directory/directories
@@ -34,21 +80,27 @@ lft <- function(.dirs, .reg = NULL, .id = "doc_id", .rec = FALSE) {
 #' @export
 filter_dups <- function(.tab, ...) {
 
-  # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+  # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+  # source("_debug_vars/debug-filter_dups.R")
 
-  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-  `_tmp_` <- dup_id <- NULL
-
+  # Get Quosures -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
   vars_ <- dplyr::enquos(...)
+
+  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
+  id_dup <- n_dup <- id <- NULL
+
+  # Get Duplicates -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
   .tab %>%
     dtplyr::lazy_dt() %>%
-    dplyr::mutate(`_tmp_` = paste(!!!vars_, sep = "<><><>")) %>%
-    dplyr::filter(duplicated(`_tmp_`) | duplicated(`_tmp_`, fromLast = TRUE)) %>%
-    dplyr::arrange(`_tmp_`) %>%
-    dplyr::group_by(`_tmp_`) %>%
-    dplyr::mutate(dup_id = dplyr::cur_group_id()) %>%
+    dplyr::group_by(!!!vars_) %>%
+    dplyr::mutate(
+      id_dup  = dplyr::cur_group_id(),
+      n_dup   = dplyr::n()
+    ) %>%
     dplyr::ungroup() %>%
-    dplyr::select(dup_id, dplyr::everything(), -`_tmp_`) %>%
+    dplyr::filter(n_dup > 1) %>%
+    dplyr::arrange(id_dup) %>%
+    dplyr::select(id, id_dup, n_dup, dplyr::everything()) %>%
     tibble::as_tibble()
 }
 
@@ -66,34 +118,6 @@ msg_verbose <- function(.msg, .verbose) {
   if (.verbose) message(msg_)
 }
 
-#' Helper Function: Check for named vector
-#'
-#' @param .tab
-#' A dataframe (either the source or target dataframe)
-#'
-#' @param .cols
-#' A named character, with the columns names as string you want to match.\cr
-#' The vector must be named wit either fuzzy (f) of exact (e).
-#'
-#' @return Nothing or an error
-check_names <- function(.tab, .cols) {
-  if (!all(.cols %in% colnames(.tab))) {
-    col_ <- paste(.cols[!.cols %in% colnames(.tab)], collapse = ", ")
-    msg_ <- glue::glue("Columns: {col_} are not present in the dataframe")
-    stop(msg_, call. = FALSE)
-  }
-
-  names_ <- names(.cols)
-  if (!all(tolower(names_) %in% c("fuzzy", "exact", "e", "f"))) {
-    msg_ <- paste0(
-      "\nArgument '.cols' must have names.",
-      "\nExact Matching: 'exact' or 'e'",
-      "\nFuzzy Matching: 'fuzzy' or 'd'",
-      "\nNames are case insenstive, both full name or first letter are possibe"
-    )
-    stop(msg_, call. = FALSE)
-  }
-}
 
 
 #' Helper Function: Prepare Table
@@ -102,9 +126,6 @@ check_names <- function(.tab, .cols) {
 #'
 #' @param .tab
 #' A dataframe (either the source or target dataframe)
-#' @param .cols
-#' A named character, with the columns names as string you want to match.\cr
-#' The vector must be named wit either fuzzy (f) of exact (e).
 #' @param .fstd
 #' Standardization Function
 #' @param .dir
@@ -112,117 +133,117 @@ check_names <- function(.tab, .cols) {
 #' @param .type
 #' Either s (source) or t (target)
 #' @return A dataframe
-prep_table <- function(.tab, .cols, .fstd = standardize_str, .dir, .type = c("s", "t")) {
+prep_table <- function(.tab, .fstd = NULL, .dir, .type = c("s", "t")) {
 
-  # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  # source("_debug/debug-prep_tables.R")
+  # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+  # source("_debug_vars/debug-prep_tables.R")
 
-  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-  name <- hash <- dup_id <- hash_use <- hash_dup <- val <- nc <- NULL
+  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
+  name <- hash <- dup_id <- hash_use <- hash_dup <- val <- nc <- id <- NULL
 
-  # Check if columns are named -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  check_names(.tab, .cols)
+  # Create Directories -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+  dir_tabs_ <- file.path(.dir, "tables")
+  if (!dir.exists(dir_tabs_)) dir.create(dir_tabs_, FALSE, TRUE)
 
-  # Match Arguments -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
+  # Match Arguments -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
   type_ <- match.arg(.type, c("s", "t"))
 
-  # Check for Duplicates -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  dup_ <- filter_dups(.tab, !!!dplyr::syms(.cols))
-  if (nrow(dup_) > 0) {
-    name_tab_ <- deparse(substitute(.tab))
-    name_col_ <- deparse(substitute(.cols))
-    name_col_ <- gsub("(f|e)\\s?\\=\\s?", "", name_col_)
-    msg_ <- glue::glue(
-      "Input data contains duplicates. Please run the following code to check for duplicates:
+  # Checks -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+  check_id(.tab = .tab, .col = "id", .type = type_)
+  check_dups(.tab = .tab, .col = "id")
 
-      dups <- help_filter_dups(
-        .tab = {name_tab_},
-        !!!dplyr::syms({name_col_})
-      )"
-    )
-    stop(msg_, call. = FALSE)
-  }
+  # Save Original Table -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
+  tab_orig_ <- dplyr::select(.tab, id, dplyr::everything())
+  fst::write_fst(tab_orig_, file.path(dir_tabs_, paste0(type_, "orig.fst")), 100)
 
-  # Assign new names to columns -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
-  nm_ <- tibble::tibble(name = names(.cols), col_old = .cols) %>%
-    dplyr::group_by(name) %>%
-    dplyr::mutate(col_new = paste0(name, dplyr::row_number())) %>%
-    dplyr::ungroup()
-  co_ <- nm_$col_old
-  cn_ <- nm_$col_new
+  # Transform Table -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+  tab_out_ <- .tab %>%
+    tidyr::pivot_longer(!dplyr::matches("^id$"), names_to = "col", values_to = "val")
 
-  # Prepare table (1) -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  tab_orig_ <- tibble::as_tibble(.tab) %>%
-    dplyr::mutate(
-      hash = purrr::map_chr(paste0(!!!dplyr::syms(co_)), fastdigest::fastdigest)
-    ) %>%
-    dplyr::select(hash, dplyr::everything())
-
-
-  tab_ <- `colnames<-`(tab_orig_[, c("hash", co_)], c("hash", cn_))
-
-  # Standardize columns -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
   if (!is.null(.fstd)) {
-    tab_ <- dplyr::mutate(tab_, dplyr::across(c(!!!dplyr::syms(cn_)), .fstd))
+    tab_out_ <- dplyr::mutate(tab_out_, val = .fstd(val))
   }
+  tab_out_ <- dplyr::mutate(tab_out_, nc = nchar(val))
 
-  # Get Duplicates after Standardization -- -- -- -- -- -- -- -- -- -- -- -- ---
-  dup_ <- filter_dups(tab_, !!!dplyr::syms(cn_)) %>%
-    dplyr::group_by(dup_id) %>%
-    dplyr::mutate(hash_use = dplyr::first(hash)) %>%
-    dplyr::ungroup() %>%
-    dplyr::select(hash_use, hash_dup = hash) %>%
-    dplyr::filter(!hash_use == hash_dup)
-
-  # Prepare table (2) -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  out_ <- tab_ %>%
-    dplyr::filter(!hash %in% dup_$hash_dup) %>%
-    tidyr::pivot_longer(dplyr::starts_with("f"), names_to = "col", values_to = "val") %>%
-    dplyr::mutate(nc = nchar(val), .before = val) %>%
-    dplyr::select(hash, col, dplyr::everything()) %>%
-    dplyr::filter(!is.na(val))
-
-  # Make Groups -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  groups_ <- out_ %>%
-    dplyr::count(col, !!!dplyr::syms(cn_[startsWith(cn_, "e")]), nc) %>%
-    dplyr::arrange(col, !!!dplyr::syms(cn_[startsWith(cn_, "e")]), nc)
-
-  # Save Output -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  dir.create(file.path(.dir, "tables"), FALSE, TRUE)
-
-  fst::write_fst(tab_orig_, file.path(.dir, "tables", paste0(type_, "orig.fst")), 100)
-  fst::write_fst(out_, file.path(.dir, "tables", paste0(type_, "data.fst")), 100)
-  fst::write_fst(groups_, file.path(.dir, "tables", paste0(type_, "group.fst")), 100)
-  fst::write_fst(dup_, file.path(.dir, "tables", paste0(type_, "dups.fst")), 100)
-  fst::write_fst(nm_, file.path(.dir, "tables", paste0(type_, "names.fst")), 100)
+  fst::write_fst(tab_out_, file.path(dir_tabs_, paste0(type_, "data.fst")), 100)
 }
+
 
 #' Helper Function: Make Groups
 #'
-#' @param .dir Directory to store Tables
+#' @param .dir_tabs Directory to store Tables
+#' @param .dir_store Directory to store matching
+#' @param .cols
+#' A named character, with the columns names as string you want to match.\cr
+#' The vector must be named wit either fuzzy (f) of exact (e).
 #' @param .range Character range
 #'
 #' @return A table with Groups (saved in .dir)
-make_groups <- function(.dir, .range = Inf) {
+make_groups <- function(.dir_tabs, .dir_store, .cols, .range = Inf) {
+  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
+  id <- val <- group <- nc <- nct <- ncs <- ns <- nt <- NULL
 
-  # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  # source("_debug/debug-make_groups.R")
+  dir.create(file.path(.dir_store, "_tmp"), FALSE, TRUE)
 
-  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-  nct <- ncs <- ns <- nt <- size <- NULL
 
-  sgroups <- fst::read_fst(file.path(.dir, "sgroup.fst"))
-  tgroups <- fst::read_fst(file.path(.dir, "tgroup.fst"))
-  cols_ <- colnames(sgroups)[!colnames(sgroups) %in% c("nc", "n")]
+  cols_e_ <- .cols[names(.cols) == "e"]
+  cols_f_ <- .cols[names(.cols) == "f"]
 
-  groups_ <- sgroups %>%
+  tabs_ <- dtplyr::lazy_dt(fst::read_fst(file.path(.dir_tabs, "sdata.fst")))
+  grps_ <- tabs_ %>%
+    dplyr::filter(col %in% cols_e_) %>%
+    dplyr::mutate(val = dplyr::if_else(is.na(val), "_none_", val)) %>%
+    dplyr::group_by(id) %>%
+    dplyr::summarise(group = paste(val, collapse = "<>"), .groups = "drop") %>%
+    tibble::as_tibble()
+  tabs_ <- tabs_ %>%
+    dplyr::filter(col %in% cols_f_) %>%
+    dplyr::left_join(grps_, by = "id") %>%
+    tibble::as_tibble()
+  s_none_ <- unique(tabs_$group)
+  s_none_ <- s_none_[grepl("_none_", s_none_)]
+
+  fst::write_fst(tabs_, file.path(.dir_store, "_tmp", "sdata.fst"), 100)
+
+
+ #  dubs_ <- filter_dups(tabs_, col, val, group)
+
+  tabt_ <- dtplyr::lazy_dt(fst::read_fst(file.path(.dir_tabs, "tdata.fst")))
+  grpt_ <- tabt_ %>%
+    dplyr::filter(col %in% cols_e_) %>%
+    dplyr::mutate(val = dplyr::if_else(is.na(val), "_none_", val)) %>%
+    dplyr::group_by(id) %>%
+    dplyr::summarise(group = paste(val, collapse = "<>"), .groups = "drop") %>%
+    tibble::as_tibble()
+  tabt0_ <- tabt_ %>%
+    dplyr::filter(col %in% cols_f_) %>%
+    dplyr::left_join(grpt_, by = "id") %>%
+    tibble::as_tibble()
+
+  tabt1_ <- tabt0_ %>%
+    dplyr::select(-group) %>%
+    tidyr::expand_grid(group = s_none_)
+
+  tabt_ <- dplyr::distinct(dplyr::bind_rows(tabt0_, tabt1_))
+
+  fst::write_fst(tabt_, file.path(.dir_store, "_tmp", "tdata.fst"), 100)
+
+
+
+
+  ncs_ <- tabs_ %>%
+    dplyr::select(group, col, nc) %>%
+    dplyr::count(group, col, nc)
+  nct_ <- tabt_ %>%
+    dplyr::select(group, col, nc) %>%
+    dplyr::count(group, col, nc)
+
+  group_ <- ncs_ %>%
     # Join with Target Dataframe
-    dplyr::inner_join(tgroups, by = c(cols_), suffix = c("s", "t")) %>%
+    dplyr::inner_join(nct_, by = c("group", "col"), suffix = c("s", "t")) %>%
     # Filter Nchars according to range
     dplyr::filter(nct >= ncs - .range & nct <= ncs + .range) %>%
-    dplyr::arrange(!!!dplyr::syms(cols_), ncs, nct) %>%
-    # Get Initial Start and Stop Nchars
-    dplyr::group_by(!!!dplyr::syms(cols_), ncs) %>%
+    dplyr::group_by(group, col, ncs) %>%
     dplyr::summarise(
       ncs1 = ncs[1],
       ncs2 = ncs[1],
@@ -231,13 +252,13 @@ make_groups <- function(.dir, .range = Inf) {
       ns = ns[1],
       nt = sum(nt),
       size = ns * nt,
-      .groups = "drop_last"
-    ) %>%
-    dplyr::select(-ncs) %>%
-    dplyr::arrange(size, .by_group = TRUE)
+      .groups = "drop"
+    )
 
-  fst::write_fst(groups_, file.path(.dir, "_groups.fst"), 100)
+  return(group_)
 }
+
+
 
 #' Helper Function: Match a single Group
 #'
@@ -249,30 +270,35 @@ make_groups <- function(.dir, .range = Inf) {
 #' @import data.table
 #'
 #' @return A dataframe
-match_group <- function(.lst, .max_match = 10,
-                        .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex"),
-                        .workers = floor(future::availableCores() / 4)) {
+match_group <- function(
+    .lst, .max_match = 10,
+    .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex"),
+    .workers = floor(future::availableCores() / 4)
+    ) {
 
   # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
   # source("_debug/debug-prep_tables.R")
 
   # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-  hash <- val <- hash_s <- hash_t <- Var1 <- Var2 <- value <- sim <- NULL
+  id <- val <- id_s <- id_t <- Var1 <- Var2 <- value <- sim <- val_s <- val_t <- NULL
 
   # Match Arguments -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
   choices_ <- c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
   method_ <- match.arg(.method, choices_)
 
-  s_ <- dplyr::select(dtplyr::lazy_dt(.lst$s), hash, val)
-  t_ <- dplyr::select(dtplyr::lazy_dt(.lst$t), hash, val)
+  s_ <- dplyr::select(dtplyr::lazy_dt(.lst$s), id, val)
+  t_ <- dplyr::select(dtplyr::lazy_dt(.lst$t), id, val)
 
   exact_ <- s_ %>%
     dplyr::inner_join(t_, by = "val", suffix = c("_s", "_t")) %>%
-    dplyr::select(hash_s, hash_t) %>%
+    dplyr::mutate(val_s = val, val_t = val) %>%
     dplyr::mutate(sim = 1) %>%
-    tibble::as_tibble()
+    dplyr::select(id_s, id_t, val_s, val_t, sim) %>%
+    tibble::as_tibble() %>%
+    dplyr::mutate(col = .lst$col) %>%
+    dplyr::select(col, id_s, id_t, val_s, val_t, sim)
 
-  s_ <- dplyr::filter(tibble::as_tibble(s_), !hash %in% exact_$hash_s)
+  s_ <- dplyr::filter(tibble::as_tibble(s_), !id %in% exact_$id_s)
   t_ <- tibble::as_tibble(t_)
 
   if (nrow(s_) == 0 | nrow(t_) == 0) {
@@ -287,21 +313,25 @@ match_group <- function(.lst, .max_match = 10,
     nthread = .workers
   ) %>%
     reshape2::melt() %>%
-    dplyr::rename(hash_s = Var1, hash_t = Var2, sim = value) %>%
-    dtplyr::lazy_dt() %>%
+    dplyr::rename(id_s = Var1, id_t = Var2, sim = value) %>%
+    # dtplyr::lazy_dt() %>%
     dplyr::filter(sim > 0) %>%
-    dplyr::group_by(hash_s) %>%
+    dplyr::group_by(id_s) %>%
     dplyr::arrange(-sim, .by_group = TRUE) %>%
-    dplyr::filter(sim >= dplyr::nth(sim, .max_match)) %>%
+    dplyr::filter(sim >= dplyr::nth(sim, .max_match, default = 0.00001)) %>%
     dplyr::ungroup() %>%
-    dplyr::arrange(hash_s, dplyr::desc(sim)) %>%
+    dplyr::arrange(id_s, dplyr::desc(sim)) %>%
     tibble::as_tibble() %>%
     dplyr::mutate(
-      hash_s = s_[["hash"]][hash_s],
-      hash_t = t_[["hash"]][hash_t]
+      val_s = s_[["val"]][id_s],
+      val_t = t_[["val"]][id_t],
+      id_s = s_[["id"]][id_s],
+      id_t = t_[["id"]][id_t],
     )
 
-  dplyr::bind_rows(exact_, fuzzy_)
+  dplyr::bind_rows(exact_, fuzzy_) %>%
+    dplyr::mutate(col = .lst$col) %>%
+    dplyr::select(col, id_s, id_t, val_s, val_t, sim)
 }
 
 #' Helper Function: tidyft::filter_fst
@@ -321,41 +351,60 @@ filter_fst_adj <- function(ft, dot_string) {
 }
 
 
+
+
 #' Helper Function: Filter data from fst files
 #'
 #' @param .dir Directory to store Tables
-#' @param .row One row corrsponds to a group
+#' @param .group One row corrsponds to a group
 #'
 #' @return Filtered Dataframe
-filter_groups <- function(.dir, .row) {
+filter_groups <- function(.dir, .group) {
   # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
 
-  sdata <- tidyft::parse_fst(file.path(.dir, "tables", "sdata.fst"))
-  tdata <- tidyft::parse_fst(file.path(.dir, "tables", "tdata.fst"))
-  ce_ <- colnames(sdata)[startsWith(colnames(sdata), "e")]
+  sdata <- tidyft::parse_fst(file.path(.dir, "sdata.fst"))
+  tdata <- tidyft::parse_fst(file.path(.dir, "tdata.fst"))
 
-  tab_ <- tibble::as_tibble(sdata)
-  col_ <- .row$col
-  ncs1_ <- .row$ncs1
-  ncs2_ <- .row$ncs2
-  nct1_ <- .row$nct1
-  nct2_ <- .row$nct2
+  col_ <- .group$col
+  grp_ <- .group$group
+  ncs1_ <- .group$ncs1
+  ncs2_ <- .group$ncs2
+  nct1_ <- .group$nct1
+  nct2_ <- .group$nct2
 
-  if (length(ce_) > 0) {
-    es_ <- paste(purrr::map_chr(ce_, ~ paste0(.x, " == ", "'", .row[[.x]], "'")), collapse = " & ")
-
-    strs_ <- as.character(glue::glue('col == "{col_}" & {es_} & nc >= {ncs1_} & nc <= {ncs2_}'))
-    strt_ <- as.character(glue::glue('col == "{col_}" & {es_} & nc >= {nct1_} & nc <= {nct2_}'))
-  } else {
-    strs_ <- as.character(glue::glue('col == "{col_}" & nc >= {ncs1_} & nc <= {ncs2_}'))
-    strt_ <- as.character(glue::glue('col == "{col_}" & nc >= {nct1_} & nc <= {nct2_}'))
-  }
+  strs_ <- as.character(glue::glue('col == "{col_}" & group == "{grp_}" & nc >= {ncs1_} & nc <= {ncs2_}'))
+  strt_ <- as.character(glue::glue('col == "{col_}" & group == "{grp_}" & nc >= {nct1_} & nc <= {nct2_}'))
 
   stab <- filter_fst_adj(sdata, strs_)
   ttab <- filter_fst_adj(tdata, strt_)
 
-  return(list(s = stab, t = ttab))
+  return(list(s = stab, t = ttab, group = .group$group, col = col_))
 }
+
+get_dir_store <- function(.dir, .cols, .range, .max_match, .method) {
+  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
+  value <- name <- cols <- max_match <- method <- hash <- NULL
+
+  tab_ <- tibble::enframe(.cols) %>%
+    dplyr::arrange(value) %>%
+    dplyr::mutate(cols = paste0(name, ": ", value)) %>%
+    dplyr::summarise(cols = paste(cols, collapse = ", ")) %>%
+    dplyr::mutate(range = .range, max_match = .max_match, method = .method) %>%
+    dplyr::mutate(hash = digest::digest(paste0(cols, range, max_match, method))) %>%
+    dplyr::select(hash, cols, range, max_match, method)
+
+  dir_ <- file.path(.dir, tab_$hash)
+  dir.create(dir_, FALSE, TRUE)
+
+  fil_ <- file.path(.dir, "variants.fst")
+  if (file.exists(fil_)) {
+    tab_ <- dplyr::distinct(dplyr::bind_rows(fst::read_fst(fil_), tab_))
+  }
+
+  fst::write_fst(tab_, fil_, 100)
+  return(dir_)
+}
+
 
 # Main Functions ----------------------------------------------------------
 #' Get Method Names
@@ -498,22 +547,18 @@ extract_legal_form <- function(
     dplyr::relocate(lfid, .after = lfs)
 }
 
+
+
 #' Prepare Tables for Matching
 #'
 #' @param .source
 #' Source Dataframe
 #' @param .target
 #' Target Dataframe
-#' @param .cols
-#' A named character, with the columns names as string you want to match.\cr
-#' The vector must be named wit either fuzzy (f) of exact (e).
 #' @param .fstd
 #' Standardization Function (Default: standardize_str())
 #' @param .dir
 #' Directory to store Tables
-#' @param .range
-#' A range of characters as an integer, e.g. the name of the source dataframe is 5 characters long and the
-#' .range argument is 3, then all names in the target dataframe between 2 - 8 characters are used for the matching
 #' @param .return
 #' Return a saved file(s)?
 #' @param .verbose
@@ -522,66 +567,61 @@ extract_legal_form <- function(
 #' @return Dataframes (saved in .dir)
 #'
 #' @export
-prep_tables <- function(.source, .target, .cols, .fstd = standardize_str, .dir,
-                        .range = Inf, .return = FALSE, .verbose = TRUE) {
+prep_tables <- function(.source, .target, .fstd = NULL, .dir, .return = FALSE, .verbose = TRUE) {
+
+  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
+  doc_id <- NULL
 
   # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
   # source("_debug_vars/debug-prep_tables.R")
 
   # Create Directory -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-  dir.create(.dir, FALSE, TRUE)
+  dir_tabs_ <- file.path(.dir, "tables")
 
-  fs_tab_ <- file.path(.dir, "tables")
+  fils_   <- lft(dir_tabs_)
+  expect_ <- c("sorig", "sdata", "torig", "tdata")
+  fils_   <- dplyr::filter(fils_, doc_id %in% expect_)
 
-  if (dir.exists(fs_tab_)) {
-    # Check if files already exist
-    nm_ <- c("data", "dups", "group", "names", "orig")
-    ex_ <- tibble::tibble(doc_id = c(paste0("s", nm_), paste0("t", nm_), "_groups"))
-    fs_ <- dplyr::full_join(lft(fs_tab_), ex_, by = "doc_id")
-    na_ <- sum(is.na(fs_$path))
-
-    # If files are present but incomplete throw and error
-    if (na_ > 0 & na_ < 11) {
-      stop(".dir contains files but is incomplete", call. = FALSE)
-    }
-
-    # If files are complete, notify
-    if (all(ex_$doc_id %in% fs_$doc_id)) {
-      msg_verbose("Stored data is complete, tables won't be prepared again", .verbose)
-    }
-
-
-  } else {
-
+  if (!all(expect_ %in% fils_$doc_id)) {
     msg_verbose("Preparing Source Table ...", .verbose)
-    prep_table(.tab = .source, .cols = .cols, .fstd = .fstd, .dir = .dir, .type = "s")
+    prep_table(.tab = .source, .fstd = .fstd, .dir = .dir, .type = "s")
 
     msg_verbose("Preparing Target Table ...", .verbose)
-    prep_table(.tab = .target, .cols = .cols, .fstd = .fstd, .dir = .dir, .type = "t")
-
-    msg_verbose("Calculating Groups ...", .verbose)
-    make_groups(.dir = file.path(.dir, "tables"), .range = .range)
-  }
-
-  if (.return) {
-    fil_ <- lft(fs_tab_)
-    return(purrr::map(purrr::set_names(fil_$path, fil_$doc_id), fst::read_fst))
+    prep_table(.tab = .target, .fstd = .fstd, .dir = .dir, .type = "t")
   } else {
-    msg_verbose("Data is stored ...", .verbose)
+    if (.return) {
+      fil_ <- lft(dir_tabs_)
+      return(purrr::map(purrr::set_names(fil_$path, fil_$doc_id), fst::read_fst))
+    } else {
+      msg_verbose("Data is aready stored ...", .verbose)
+    }
   }
-
 }
+
+
+
 
 
 
 #' Match Data
 #'
-#' @param .dir Directory to store Tables
-#' @param .max_match MAximum number of matches
-#' @param .method c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
-#' @param .workers Workers to use
-#' @param .return
-#' Return a saved file(s)?
+#' @param .dir
+#' Directory to store Tables
+#' @param .cols
+#' A named character, with the columns names as string you want to match.\cr
+#' The vector must be named wit either fuzzy (f) of exact (e).
+#' @param .range
+#' A range of characters as an integer, e.g. the name of the source dataframe is 5 characters long and the
+#' .range argument is 3, then all names in the target dataframe between 2 - 8 characters are used for the matching
+#' @param .weights
+#' A named vector with weight, if null all columns will be equal weighted
+#' @param .max_match
+#' Maximum number of matches
+#' @param .allow_mult Aloow multiple matches?
+#' @param .method
+#' c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
+#' @param .workers
+#' Workers to use
 #' @param .verbose
 #' Print additional Information? (Default: TRUE)
 #'
@@ -590,294 +630,167 @@ prep_tables <- function(.source, .target, .cols, .fstd = standardize_str, .dir,
 #' @return A dataframe (saved in .dir)
 #' @export
 match_data <- function(
-    .dir, .max_match = 10,
+    .dir,
+    .cols,
+    .range = Inf,
+    .weights = NULL,
+    .max_match = 10,
+    .allow_mult = TRUE,
     .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex"),
     .workers = floor(future::availableCores() / 4),
-    .return = FALSE,
     .verbose = TRUE
-    ) {
+) {
 
-  # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
+  id_s <- id_t <- id <- val <- val_s <- val_t <- group <- weigth <- sim <- score <- weight <-
+    rank_new <- . <- size <- rank_old <- NULL
+
+  # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
   # source("_debug_vars/debug-match_data.R")
 
-  # Match Arguments -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
+  # Match Arguments -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
   choices_ <- c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
   method_ <- match.arg(.method, choices_)
 
-  # Check if Matching already exists -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  path_matches_ <- file.path(.dir, method_, "_matches.fst")
-  dir.create(dirname(path_matches_), FALSE, TRUE)
+  # checks -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+  check_matching_cols(file.path(.dir, "tables", "sorig.fst"), .cols, "s")
+  check_matching_cols(file.path(.dir, "tables", "sorig.fst"), .cols, "t")
+  check_names(.cols)
 
-  if (file.exists(path_matches_)) {
-    msg_verbose("Matching exists already, it won't be recalculated", .verbose)
-    if (.return) {
-      return(fst::read_fst(path_scores_))
-    } else {
-      return(NULL)
-    }
-  }
+  # Get Directories -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+  dir_tabs_  <- file.path(.dir, "tables")
+  dir_store_ <- get_dir_store(.dir, .cols, .range, .max_match, .method = method_)
+  fil_match_ <- file.path(dir_store_, "matches.fst")
 
-  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-  group <- sim <- hash <- val <- vals <- valt <- hash_s <- hash_t <- uni <- score <- NULL
-
-  # Reading Groups -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  fil_groups_ <- file.path(.dir, "tables", "_groups.fst")
-  tab_groups_ <- dplyr::mutate(fst::read.fst(fil_groups_), group = dplyr::row_number())
-  lst_groups_ <- split(tab_groups_, seq_len(nrow(tab_groups_)))
-
-  # Start Matching -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  msg_verbose("Matching source table to target table ...", .verbose)
-  pb <- if (.verbose) progress::progress_bar$new(total = length(lst_groups_))
-
-  if (.workers == 1) {
-    tmp_match_ <- purrr::map_dfr(
-      .x = lst_groups_,
-      .f = ~ {
-        if (.verbose) pb$tick()
-        match_group(filter_groups(.dir, .x), .max_match, method_, .workers)
-      },
-      .id = "group"
-    )
+  if (file.exists(fil_match_)) {
+    msg_verbose("Matching already exists", .verbose)
+    match_ <- fst::read_fst(fil_match_)
   } else {
+    # Make Groups
+    msg_verbose("Transforming tables and retrieving groups", .verbose)
+    group_ <- make_groups(.dir_tabs = dir_tabs_, .dir_store = dir_store_, .cols, .range) %>%
+      dplyr::arrange(dplyr::desc(size))
+    group_ <- split(group_, seq_len(nrow(group_)))
+
+    # .group = group_[[1]]
+    # .lst = filter_groups(file.path(dir_store_, "_tmp"), group_[[1]])
+
+
+    # Start Matching -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
+    msg_verbose("Matching source table to target table ...", .verbose)
+    globals_ <- c(
+      "method_", ".max_match", ".workers", "match_group", "filter_groups",
+      ".dir", "filter_fst_adj", "dir_store_"
+    )
     future::plan("multisession", workers = .workers)
     tmp_match_ <- furrr::future_map_dfr(
-      .x = lst_groups_,
+      .x = group_,
       .f = ~ match_group(
-        .lst = filter_groups(.dir, .x),
+        .lst = filter_groups(file.path(dir_store_, "_tmp"), .x),
         .max_match = .max_match,
         .method = method_,
         .workers = .workers
-        ),
-      .options = furrr::furrr_options(
-        seed = TRUE,
-        globals = c(
-          "method_", ".max_match", ".workers", "match_group", "filter_groups",
-          ".dir", "filter_fst_adj"
-          )
-        ),
+      ),
+      .options = furrr::furrr_options(seed = TRUE, globals = globals_),
       .progress = .verbose,
       .id = "group"
     )
     future::plan("default")
     on.exit(future::plan("default"))
+
+    # Read Transformed Data -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+    sdata <- fst::read_fst(file.path(dir_tabs_, "sdata.fst"))
+    tdata <- fst::read_fst(file.path(dir_tabs_, "tdata.fst"))
+
+    msg_verbose("Adjusting similarity scores", .verbose)
+    miss_ <- dplyr::distinct(tmp_match_, id_s, id_t) %>%
+      tidyr::expand_grid(dplyr::distinct(tmp_match_, col)) %>%
+      dtplyr::lazy_dt() %>%
+      dplyr::anti_join(tmp_match_[, c("id_s", "id_t", "col")], by = c("id_s", "id_t", "col")) %>%
+      dplyr::left_join(dplyr::select(sdata, id_s = id, col, val_s = val), by = c("id_s", "col")) %>%
+      dplyr::left_join(dplyr::select(tdata, id_t = id, col, val_t = val), by = c("id_t", "col")) %>%
+      tibble::as_tibble() %>%
+      dplyr::mutate(sim = stringdist::stringsim(val_s, val_t, method_))
+
+    sim_ <- dplyr::bind_rows(tmp_match_, miss_)
+
+    msg_verbose("Finalizing output ...", .verbose)
+    match_ <- sim_ %>%
+      dtplyr::lazy_dt() %>%
+      dplyr::arrange(dplyr::desc(sim)) %>%
+      dplyr::distinct(col, id_s, id_t, .keep_all = TRUE) %>%
+      tibble::as_tibble()
+
+    fst::write_fst(match_, file.path(dir_store_, "matches.fst"))
+    unlink(file.path(dir_store_, "_tmp"), force = TRUE)
   }
 
-  # Read Transormed Data -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  sdata <- fst::read_fst(file.path(file.path(.dir, "tables"), "sdata.fst"))
-  tdata <- fst::read_fst(file.path(file.path(.dir, "tables"), "tdata.fst"))
 
-
-  msg_verbose("Adjusting similarity scores", .verbose)
-  sim_ <- tmp_match_ %>%
-    dtplyr::lazy_dt() %>%
-    dplyr::filter(!is.na(hash_s), !is.na(hash_t)) %>%
-    dplyr::mutate(group = as.integer(group)) %>%
-    dplyr::left_join(dplyr::select(tab_groups_, group, col, dplyr::starts_with("e")), by = "group") %>%
-    dplyr::select(-group) %>%
-    tidyr::pivot_wider(names_from = col, values_from = sim) %>%
-    tidyr::pivot_longer(cols = dplyr::starts_with("f"), names_to = "col", values_to = "sim", ) %>%
-    dplyr::left_join(
-      y = dplyr::select(sdata, hash_s = hash, col, vals = val),
-      by = c("hash_s", "col")
-    ) %>%
-    dplyr::left_join(
-      y = dplyr::select(tdata, hash_t = hash, col, valt = val),
-      by = c("hash_t", "col")
-    ) %>%
-    dplyr::mutate(
-      sim = dplyr::if_else(
-        condition = is.na(sim) & !is.na(vals) & !is.na(valt),
-        true = stringdist::stringsim(vals, valt, method_),
-        false = sim
-      )
-    ) %>%
-    dplyr::select(-vals, -valt)
-
-  msg_verbose("Calculating uniqness scores", .verbose)
-  uni_ <- sim_ %>%
-    dplyr::arrange(hash_s, col) %>%
-    dplyr::group_by(hash_s, col) %>%
-    dplyr::summarise(uni = 1 - mean(sim, na.rm = TRUE), .groups = "drop_last") %>%
-    dplyr::mutate(uni = uni / sum(uni)) %>%
-    dplyr::ungroup()
-
-  msg_verbose("Finalizing output ...", .verbose)
-  match_ <- dplyr::left_join(sim_, uni_, by = c("hash_s", "col")) %>%
-    dplyr::mutate(score = sim * uni) %>%
-    dplyr::distinct(hash_s, hash_t, dplyr::across(dplyr::matches("^e\\d+$")), col, .keep_all = TRUE) %>%
-    tidyr::pivot_wider(names_from = col, values_from = c(sim, uni, score)) %>%
-    tibble::as_tibble()
-
-
-  fst::write_fst(match_, path_matches_)
-
-  if (.return) {
-    return(match_)
-  } else {
-    msg_verbose("Data is stored ...", .verbose)
-  }
-
-}
-
-
-#' Score Data
-#'
-#' @param .dir
-#' Directory to store Tables
-#' @param .weights
-#' A named vector with weight, if null all columns will be equal weighted
-#' @param .max_match
-#' Maximum number of matches
-#' @param .method
-#' c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
-#' @param .return
-#' Return a saved file(s)?
-#' @param .verbose
-#' Print additional Information? (Default: TRUE)
-#'
-#'
-#' @import data.table
-#'
-#' @return A dataframe (saved in .dir)
-#' @export
-score_data <- function(
-    .dir,
-    .weights = NULL,
-    .max_match = 10,
-    .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex"),
-    .return = FALSE,
-    .verbose = TRUE
-    ) {
-
-  # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  # source("_debug_vars/debug-score_data.R")
-
-  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-  name <- weight <- col_new <- hash_s <- score <- score_f1 <- NULL
-
-  # Match Arguments -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
-  choices_ <- c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
-  method_ <- match.arg(.method, choices_)
-
-  # Check if Matching already exists -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  path_scores_ <- file.path(.dir, method_, "_scores.fst")
-  if (file.exists(path_scores_)) {
-    msg_verbose("Scoring exists already, it won't be recalculated", .verbose)
-    if (.return) {
-      return(fst::read_fst(path_scores_))
-    } else {
-      return(NULL)
-    }
-  }
-
-  # Get weights -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  names_ <- fst::read_fst(file.path(.dir, "tables", "snames.fst")) %>%
-    dplyr::filter(name == "f")
+  # Get weights -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
   if (!is.null(.weights)) {
-    weight_ <- tibble::tibble(col_old = names(.weights), weight = .weights)
-    weight_ <- names_ %>%
-      dplyr::left_join(weight_, by = "col_old") %>%
-      dplyr::mutate(weight = weight / sum(weight)) %>%
-      dplyr::arrange(col_new)
+    weight_ <- tibble::tibble(col = names(.weights), weight = .weights) %>%
+      dplyr::mutate(weight = weight / sum(weight))
   } else {
-    weight_ <- names_ %>%
-      dplyr::mutate(weight = 1 / dplyr::n()) %>%
-      dplyr::arrange(col_new)
+    cols_f_ <- .cols[names(.cols) == "f"]
+    weight_ <- tibble::tibble(col = cols_f_) %>%
+      dplyr::mutate(weight = 1 / dplyr::n())
   }
 
-  # Read Matches -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
-  matches_ <- fst::read_fst(file.path(.dir, method_, "_matches.fst"))
+  sorig <- fst::read_fst(file.path(dir_tabs_, "sorig.fst"), columns = c("id", .cols))
+  torig <- fst::read_fst(file.path(dir_tabs_, "torig.fst"), columns = c("id", .cols))
 
-
-  if (length(.weights) == 1) {
-    scores_ <- matches_ %>%
-      dplyr::mutate(
-        score1 = score_f1,
-        score2 = sim_f1
-      )
-  } else {
-
-    int_sco_ <- which(startsWith(colnames(matches_), "score"))
-    int_sim_ <- which(startsWith(colnames(matches_), "sim_"))
-    for (i in seq_len(length(int_sco_))) {
-      matches_[, int_sco_[i]] <- matches_[, int_sco_[i]] * weight_$weight[i]
-    }
-
-    scores_ <- matches_ %>%
-      dplyr::mutate(
-        score1 = rowSums(matches_[, int_sco_], na.rm = TRUE),
-        score2 = rowMeans(matches_[, int_sim_], na.rm = TRUE)
-      )
-  }
-
-
-
-  scores_ <- scores_ %>%
+  msg_verbose("Calculating scores", .verbose)
+  score_ <- match_ %>%
+    dplyr::mutate(sim = dplyr::if_else(is.na(sim), 0, sim)) %>%
     dtplyr::lazy_dt() %>%
-    dplyr::group_by(hash_s) %>%
-    dplyr::arrange(dplyr::desc(score1), .by_group = TRUE) %>%
-    dplyr::mutate(rank1 = dplyr::row_number()) %>%
-    dplyr::arrange(dplyr::desc(score2), .by_group = TRUE) %>%
-    dplyr::mutate(rank2 = dplyr::row_number()) %>%
+    dplyr::left_join(weight_, by = "col") %>%
+    dplyr::mutate(score = sim * weight) %>%
+    dplyr::group_by(id_s, id_t) %>%
+    dplyr::summarise(score = sum(score, na.rm = TRUE), .groups = "drop_last") %>%
+    dplyr::arrange(dplyr::desc(score), .by_group = TRUE) %>%
+    dplyr::mutate(rank_old = dplyr::row_number()) %>%
     dplyr::ungroup() %>%
-    dplyr::filter(rank1 <= .max_match | rank2 <= .max_match) %>%
     tibble::as_tibble()
 
-  fst::write_fst(scores_, path_scores_, 100)
+  if (!.allow_mult) {
+    msg_verbose("Adjusting scores", .verbose)
+    tmp_ <- score_ %>%
+      dtplyr::lazy_dt() %>%
+      dplyr::arrange(dplyr::desc(score)) %>%
+      dplyr::filter(!duplicated(id_t)) %>%
+      dplyr::group_by(id_s) %>%
+      dplyr::arrange(dplyr::desc(score), .by_group = TRUE) %>%
+      dplyr::mutate(rank_new = dplyr::row_number()) %>%
+      dplyr::select(-score) %>%
+      tibble::as_tibble() %>%
+      dplyr::filter(rank_new <= .max_match)
 
-  if (.return) {
-    return(scores_)
-  } else {
-    msg_verbose("Data is stored ...", .verbose)
+    msg_verbose("Finalizing output", .verbose)
+    out_ <- score_  %>%
+      dtplyr::lazy_dt() %>%
+      dplyr::inner_join(tmp_, by = c("id_s", "id_t", "rank_old")) %>%
+      dplyr::arrange(id_s, rank_new) %>%
+      dplyr::left_join(sorig, by = c("id_s" = "id"), suffix = c("_s", "_t")) %>%
+      dplyr::left_join(torig, by = c("id_t" = "id"), suffix = c("_s", "_t")) %>%
+      tibble::as_tibble()
+
+  } else{
+    msg_verbose("Finalizing output", .verbose)
+    out_ <- score_  %>%
+      dplyr::mutate(rank_new = rank_old) %>%
+      dplyr::filter(rank_new <= .max_match) %>%
+      dtplyr::lazy_dt() %>%
+      dplyr::arrange(id_s, rank_new) %>%
+      dplyr::left_join(sorig, by = c("id_s" = "id"), suffix = c("_s", "_t")) %>%
+      dplyr::left_join(torig, by = c("id_t" = "id"), suffix = c("_s", "_t")) %>%
+      tibble::as_tibble()
   }
+
+  miss_ <- sorig %>%
+    dplyr::filter(!id %in% out_$id_s) %>%
+    `colnames<-`(paste0(colnames(.), "_s"))
+
+  dplyr::bind_rows(out_, miss_)
+# A0EB239B
 }
 
-#' Select Data
-#'
-#' @param .dir Directory to store Tables
-#' @param .rank Up to which rank should the data be retrieved?
-#' @param .method c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
-#' @param score 1 for scoring including uniqueness, 2 for scoreing only on similarity
-#'
-#' @return A dataframe
-#' @export
-select_data <- function(
-    .dir,
-    .rank = 1,
-    .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex"),
-    .score = c(1, 2)
-    ) {
-
-  # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  # source("_debug_vars/debug-select_data.R")
-
-  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
-  hash <- val <- hash_s <- hash_t <- score <- . <- NULL
-
-  # Match Arguments -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
-  choices_ <- c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
-  method_ <- match.arg(.method, choices_)
-
-  scores_ <- fst::read_fst(file.path(.dir, method_, "_scores.fst"))
-  sdata_ <- fst::read_fst(file.path(.dir, "tables", "sorig.fst")) %>%
-    dplyr::select(hash_s = hash, dplyr::everything())
-
-  tdata_ <- fst::read_fst(file.path(.dir, "tables", "torig.fst")) %>%
-    dplyr::select(hash_t = hash, dplyr::everything())
-
-  names_ <- fst::read_fst(file.path(.dir, "tables", "snames.fst"))
-
-
-  if (.score == 1) {
-    tmp_ <- dplyr::filter(scores_, rank1 <= .rank)
-  } else {
-    tmp_ <- dplyr::filter(scores_, rank2 <= .rank)
-  }
-
-  tmp_ %>%
-    tibble::as_tibble() %>%
-    dplyr::select(hash_s, hash_t, score1, score2, dplyr::starts_with("e")) %>%
-    dplyr::left_join(sdata_, by = "hash_s", suffix = c("_s", "_t")) %>%
-    dplyr::left_join(tdata_, by = "hash_t", suffix = c("_s", "_t")) %>%
-    `colnames<-`(stringi::stri_replace_all_regex(colnames(.), paste0("^", names_$col_new, "$"), names_$col_old, FALSE))
-  }

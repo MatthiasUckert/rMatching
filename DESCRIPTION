@@ -17,12 +17,10 @@ Imports:
     dtplyr,
     dplyr,
     magrittr,
-    fastdigest,
     fst,
     furrr,
     future,
     glue,
-    progress,
     purrr,
     reshape2,
     stringdist,
@@ -32,4 +30,5 @@ Imports:
     tidyft,
     tidyr,
     carrier,
-    rlang
+    rlang,
+    digest

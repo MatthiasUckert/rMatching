@@ -4,7 +4,7 @@
 .fstd    = standardize_str
 .cols    = c(f = "name", e = "iso3", f = "city", f = "address")
 
-.dir     = "_debug_data0/"
+.dir     = "_debug_data/script"
 .range   = 5
 .return  = FALSE
 .verbose = TRUE

@@ -6,24 +6,35 @@
 \usage{
 match_data(
   .dir,
+  .cols,
+  .range = Inf,
+  .weights = NULL,
   .max_match = 10,
+  .allow_mult = TRUE,
   .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw",
     "soundex"),
   .workers = floor(future::availableCores()/4),
-  .return = FALSE,
   .verbose = TRUE
 )
 }
 \arguments{
 \item{.dir}{Directory to store Tables}
 
-\item{.max_match}{MAximum number of matches}
+\item{.cols}{A named character, with the columns names as string you want to match.\cr
+The vector must be named wit either fuzzy (f) of exact (e).}
+
+\item{.range}{A range of characters as an integer, e.g. the name of the source dataframe is 5 characters long and the
+.range argument is 3, then all names in the target dataframe between 2 - 8 characters are used for the matching}
+
+\item{.weights}{A named vector with weight, if null all columns will be equal weighted}
+
+\item{.max_match}{Maximum number of matches}
+
+\item{.allow_mult}{Aloow multiple matches?}
 
 \item{.method}{c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")}
 
 \item{.workers}{Workers to use}
-
-\item{.return}{Return a saved file(s)?}
 
 \item{.verbose}{Print additional Information? (Default: TRUE)}
 }

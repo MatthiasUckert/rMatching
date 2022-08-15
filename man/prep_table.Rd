@@ -4,13 +4,10 @@
 \alias{prep_table}
 \title{Helper Function: Prepare Table}
 \usage{
-prep_table(.tab, .cols, .fstd = standardize_str, .dir, .type = c("s", "t"))
+prep_table(.tab, .fstd = NULL, .dir, .type = c("s", "t"))
 }
 \arguments{
 \item{.tab}{A dataframe (either the source or target dataframe)}
-
-\item{.cols}{A named character, with the columns names as string you want to match.\cr
-The vector must be named wit either fuzzy (f) of exact (e).}
 
 \item{.fstd}{Standardization Function}
 

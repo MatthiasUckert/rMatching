@@ -4,10 +4,15 @@
 \alias{make_groups}
 \title{Helper Function: Make Groups}
 \usage{
-make_groups(.dir, .range = Inf)
+make_groups(.dir_tabs, .dir_store, .cols, .range = Inf)
 }
 \arguments{
-\item{.dir}{Directory to store Tables}
+\item{.dir_tabs}{Directory to store Tables}
+
+\item{.dir_store}{Directory to store matching}
+
+\item{.cols}{A named character, with the columns names as string you want to match.\cr
+The vector must be named wit either fuzzy (f) of exact (e).}
 
 \item{.range}{Character range}
 }
