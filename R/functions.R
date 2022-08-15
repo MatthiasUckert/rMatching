@@ -263,7 +263,7 @@ make_groups <- function(.dir_tabs, .dir_store, .cols, .range = Inf) {
 #' Helper Function: Match a single Group
 #'
 #' @param .lst A list produced by filter_groups()
-#' @param .max_match MAximum number of matches
+#' @param .max_match Maximum number of matches
 #' @param .method c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
 #' @param .workers workers to use
 #'
