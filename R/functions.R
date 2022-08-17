@@ -225,7 +225,7 @@ make_groups <- function(.dir_tabs, .dir_store, .cols, .range = Inf) {
   tabs_ <- tabs_ %>%
     dplyr::filter(col %in% cols_f_) %>%
     dplyr::left_join(grps_, by = "id") %>%
-    dplyr::group_by(col, val, nc, group) %>%
+    dplyr::group_by(group, col, val, nc) %>%
     dplyr::mutate(tmp = dplyr::cur_group_id()) %>%
     dplyr::arrange(tmp) %>%
     dplyr::select(tmp, id, group, col, val, nc) %>%
@@ -234,7 +234,7 @@ make_groups <- function(.dir_tabs, .dir_store, .cols, .range = Inf) {
 
   ids_  <- dplyr::select(tabs_, tmp, id)
   tabs_ <- tabs_ %>%
-    dplyr::distinct(tmp, group, col, val, nc, .keep_all = TRUE)
+    dplyr::distinct(tmp, group, col, val, nc)
 
   fst::write_fst(ids_, file.path(.dir_store, "_tmp", "sids.fst"), 100)
   fst::write_fst(tabs_, file.path(.dir_store, "_tmp", "sdata.fst"), 100)
@@ -262,7 +262,7 @@ make_groups <- function(.dir_tabs, .dir_store, .cols, .range = Inf) {
 
   tabt_ <- dplyr::distinct(dplyr::bind_rows(tabt0_, tabt1_)) %>%
     dtplyr::lazy_dt()  %>%
-    dplyr::group_by(col, val, nc, group) %>%
+    dplyr::group_by(group, col, val, nc) %>%
     dplyr::mutate(tmp = dplyr::cur_group_id()) %>%
     dplyr::arrange(tmp) %>%
     dplyr::select(tmp, id, group, col, val, nc) %>%
@@ -271,8 +271,7 @@ make_groups <- function(.dir_tabs, .dir_store, .cols, .range = Inf) {
 
   idt_  <- dplyr::select(tabt_, tmp, id)
   tabt_ <- tabt_ %>%
-    dplyr::select(tmp, group, col, val, nc) %>%
-    dplyr::distinct(tmp, .keep_all = TRUE)
+    dplyr::distinct(tmp, group, col, val, nc)
 
   fst::write_fst(idt_, file.path(.dir_store, "_tmp", "tids.fst"), 100)
   fst::write_fst(tabt_, file.path(.dir_store, "_tmp", "tdata.fst"), 100)
@@ -695,7 +694,7 @@ match_data <- function(
     rank_new <- . <- size <- rank_old <- tmp <- tmp_s <- tmp_t <- NULL
 
   # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-  source("_debug_vars/debug-match_data.R")
+  # source("_debug_vars/debug-match_data.R")
 
   # Match Arguments -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
   choices_ <- c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
@@ -719,14 +718,13 @@ match_data <- function(
     # Make Groups -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
     msg_verbose("Transforming tables and retrieving groups", .verbose)
     # .dir_tabs = dir_tabs_; .dir_store = dir_store_; .cols = .cols; .range = .range
-
-    group_ <- make_groups(.dir_tabs = dir_tabs_, .dir_store = dir_store_, .cols, .range) %>%
-      dplyr::arrange(dplyr::desc(size))
-    group_ <- split(group_, seq_len(nrow(group_)))
+    tab_group_ <- make_groups(.dir_tabs = dir_tabs_, .dir_store = dir_store_, .cols, .range)
+    tab_group_ <- dplyr::arrange(tab_group_, dplyr::desc(size))
+    lst_group_ <- split(tab_group_, seq_len(nrow(tab_group_)))
+    lst_group_ <- purrr::set_names(lst_group_, tab_group_$group)
 
     # .group = group_[[1]]
     # .lst = filter_groups(file.path(dir_store_, "_tmp"), group_[[1]])
-
 
     # Start Matching -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
     msg_verbose("Matching source table to target table ...", .verbose)
@@ -736,7 +734,7 @@ match_data <- function(
     )
     future::plan("multisession", workers = .workers)
     tmp_match_ <- furrr::future_map_dfr(
-      .x = group_,
+      .x = lst_group_,
       .f = ~ match_group(
         .lst = filter_groups(file.path(dir_store_, "_tmp"), .x),
         .max_match = .max_match,
@@ -751,27 +749,13 @@ match_data <- function(
     on.exit(future::plan("default"))
 
     # Read Transformed Data -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-    sdata <- fst::read_fst(file.path(dir_store_, "_tmp", "sdata.fst"))
-    tdata <- fst::read_fst(file.path(dir_store_, "_tmp", "tdata.fst"))
+    sdata <- fst::read_fst(file.path(dir_tabs_, "sdata.fst"))
+    tdata <- fst::read_fst(file.path(dir_tabs_, "tdata.fst"))
     sids  <- fst::read_fst(file.path(dir_store_, "_tmp", "sids.fst"))
     tids  <- fst::read_fst(file.path(dir_store_, "_tmp", "tids.fst"))
 
-    # Is that needed anymore?
-    msg_verbose("Adjusting similarity scores", .verbose)
-    miss_ <- dplyr::distinct(tmp_match_, tmp_s, tmp_t) %>%
-      tidyr::expand_grid(dplyr::distinct(tmp_match_, col)) %>%
-      dtplyr::lazy_dt() %>%
-      dplyr::anti_join(tmp_match_[, c("tmp_s", "tmp_t", "col")], by = c("tmp_s", "tmp_t", "col")) %>%
-      dplyr::left_join(dplyr::select(sdata, tmp_s = tmp, col, val_s = val), by = c("tmp_s", "col")) %>%
-      dplyr::left_join(dplyr::select(tdata, tmp_t = tmp, col, val_t = val), by = c("tmp_t", "col")) %>%
-      dplyr::filter(!is.na(val_s), !is.na(val_t)) %>%
-      tibble::as_tibble() %>%
-      dplyr::mutate(sim = stringdist::stringsim(val_s, val_t, method_))
-
-    sim_ <- dplyr::bind_rows(tmp_match_, miss_)
-
-    msg_verbose("Finalizing output ...", .verbose)
-    match_ <- sim_ %>%
+    # Joining Back IDs -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+    match0_ <- tmp_match_ %>%
       dtplyr::lazy_dt() %>%
       dplyr::arrange(dplyr::desc(sim)) %>%
       dplyr::distinct(col, tmp_s, tmp_t, .keep_all = TRUE) %>%
@@ -780,6 +764,29 @@ match_data <- function(
       dplyr::select(group, col, id_s, id_t, val_s, val_t, sim) %>%
       tibble::as_tibble()
 
+    # Retrieving Missing Scores -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+    msg_verbose("Adjusting similarity scores", .verbose)
+    miss_ <- dplyr::distinct(match0_, id_s, id_t) %>%
+      tidyr::expand_grid(dplyr::distinct(match0_, col)) %>%
+      dtplyr::lazy_dt() %>%
+      dplyr::anti_join(match0_[, c("id_s", "id_t", "col")], by = c("id_s", "id_t", "col")) %>%
+      dplyr::left_join(dplyr::select(sdata, id_s = id, col, val_s = val), by = c("id_s", "col")) %>%
+      dplyr::left_join(dplyr::select(tdata, id_t = id, col, val_t = val), by = c("id_t", "col")) %>%
+      dplyr::filter(!is.na(val_s), !is.na(val_t)) %>%
+      tibble::as_tibble() %>%
+      dplyr::mutate(sim = stringdist::stringsim(val_s, val_t, method_, nthread = .workers)) %>%
+      dplyr::mutate(group = "_missing_")
+
+    # Combining Initial and Missing Matches -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+    msg_verbose("Finalizing output ...", .verbose)
+    match_ <- dplyr::bind_rows(match0_, miss_) %>%
+      dtplyr::lazy_dt() %>%
+      dplyr::arrange(dplyr::desc(sim)) %>%
+      dplyr::distinct(col, id_s, id_t, .keep_all = TRUE) %>%
+      dplyr::select(group, col, id_s, id_t, val_s, val_t, sim) %>%
+      tibble::as_tibble()
+
+    # Write Match -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
     fst::write_fst(match_, file.path(dir_store_, "matches.fst"))
     unlink(file.path(dir_store_, "_tmp"), force = TRUE)
   }
