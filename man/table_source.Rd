@@ -12,6 +12,7 @@ A data frame with 2,426 rows and 5 variables:
 \item{iso3}{ISO 3166-1 alpha-3 country codes}
 \item{city}{City Name}
 \item{address}{Address Name}
+\item{size}{Firm Size}
 }
 }
 \usage{

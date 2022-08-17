@@ -1,5 +1,5 @@
 .dir       = "_debug_data/script"
-.cols      = c(f = "name", e = "iso3", f = "city", f = "address")
+.cols      = c(f = "name", e = "iso3", e = "size", f = "city", f = "address")
 .weights   = c(name = .7, city = .1, address = .2)
 .max_match = 10
 .range     = 5

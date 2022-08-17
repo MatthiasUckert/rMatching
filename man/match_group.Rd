@@ -15,7 +15,7 @@ match_group(
 \arguments{
 \item{.lst}{A list produced by filter_groups()}
 
-\item{.max_match}{MAximum number of matches}
+\item{.max_match}{Maximum number of matches}
 
 \item{.method}{c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")}
 

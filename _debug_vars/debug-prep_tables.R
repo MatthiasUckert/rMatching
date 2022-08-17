@@ -1,3 +1,5 @@
+devtools::load_all(".")
+
 # Without Duplicates -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 .source  = table_source
 .target  = table_target
