@@ -193,6 +193,31 @@ prep_table <- function(.tab, .fstd = NULL, .dir, .type = c("s", "t")) {
 }
 
 
+transform_input <- function(.tab, .cols_e, .cols_f) {
+  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
+  val <- id <- group <- nc <- tmp <- NULL
+
+  group_ <- .tab %>%
+    dtplyr::lazy_dt() %>%
+    dplyr::filter(col %in% .cols_e) %>%
+    dplyr::mutate(val = dplyr::if_else(is.na(val), "_none_", val)) %>%
+    dplyr::group_by(id) %>%
+    dplyr::summarise(group = paste(val, collapse = "<>"), .groups = "drop") %>%
+    dplyr::mutate(group = dplyr::if_else(grepl("_none_", group, fixed = TRUE), "_none_", group)) %>%
+    tibble::as_tibble()
+  .tab %>%
+    dplyr::filter(col %in% .cols_f) %>%
+    dtplyr::lazy_dt() %>%
+    dplyr::left_join(group_, by = "id") %>%
+    dplyr::group_by(group, col, val, nc) %>%
+    dplyr::mutate(tmp = dplyr::cur_group_id()) %>%
+    dplyr::arrange(tmp) %>%
+    dplyr::select(tmp, id, group, col, val, nc) %>%
+    dplyr::mutate(group = dplyr::if_else(is.na(group), "_none_", group)) %>%
+    dplyr::ungroup() %>%
+    tibble::as_tibble()
+}
+
 #' Helper Function: Make Groups
 #'
 #' @param .dir_tabs Directory to store Tables
@@ -206,83 +231,42 @@ prep_table <- function(.tab, .fstd = NULL, .dir, .type = c("s", "t")) {
 make_groups <- function(.dir_tabs, .dir_store, .cols, .range = Inf) {
 
   # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
-  tmp <- id <- val <- group <- nc <- nct <- ncs <- ns <- nt <- NULL
+  tmp <- id <- val <- group <- nc <- nct <- ncs <- ns <- nt <- ids <- size <- check <- NULL
 
   dir.create(file.path(.dir_store, "_tmp"), FALSE, TRUE)
 
   cols_e_ <- .cols[names(.cols) %in% c("e", "exact")]
   cols_f_ <- .cols[names(.cols) %in% c("f", "fuzzy")]
 
-  tabs_ <- dtplyr::lazy_dt(fst::read_fst(file.path(.dir_tabs, "sdata.fst")))
-  tabs_ <- tibble::as_tibble(tabs_)
-  grps_ <- tabs_ %>%
-    dplyr::filter(col %in% cols_e_) %>%
-    dplyr::mutate(val = dplyr::if_else(is.na(val), "_none_", val)) %>%
-    dplyr::group_by(id) %>%
-    dplyr::summarise(group = paste(val, collapse = "<>"), .groups = "drop") %>%
-    dplyr::mutate(group = dplyr::if_else(grepl("_none_", group, fixed = TRUE), "_none_", group)) %>%
-    tibble::as_tibble()
-  tabs_ <- tabs_ %>%
-    dplyr::filter(col %in% cols_f_) %>%
-    dplyr::left_join(grps_, by = "id") %>%
-    dplyr::group_by(group, col, val, nc) %>%
-    dplyr::mutate(tmp = dplyr::cur_group_id()) %>%
-    dplyr::arrange(tmp) %>%
-    dplyr::select(tmp, id, group, col, val, nc) %>%
-    dplyr::ungroup() %>%
-    tibble::as_tibble()
-
+  tabs_ <- fst::read_fst(file.path(.dir_tabs, "sdata.fst"))
+  tabs_ <- transform_input(tabs_, cols_e_, cols_f_)
   ids_  <- dplyr::select(tabs_, tmp, id)
-  tabs_ <- tabs_ %>%
-    dplyr::distinct(tmp, group, col, val, nc)
+  tabs_ <- dplyr::distinct(tabs_, tmp, group, col, val, nc)
 
   fst::write_fst(ids_, file.path(.dir_store, "_tmp", "sids.fst"), 100)
   fst::write_fst(tabs_, file.path(.dir_store, "_tmp", "sdata.fst"), 100)
 
 
-  s_none_ <- unique(tabs_$group)
-  s_none_ <- s_none_[grepl("_none_", s_none_)]
-
-
-  tabt_ <- dtplyr::lazy_dt(fst::read_fst(file.path(.dir_tabs, "tdata.fst")))
-  grpt_ <- tabt_ %>%
-    dplyr::filter(col %in% cols_e_) %>%
-    dplyr::mutate(val = dplyr::if_else(is.na(val), "_none_", val)) %>%
-    dplyr::group_by(id) %>%
-    dplyr::summarise(group = paste(val, collapse = "<>"), .groups = "drop") %>%
-    dplyr::mutate(group = dplyr::if_else(grepl("_none_", group, fixed = TRUE), "_none_", group)) %>%
-    tibble::as_tibble()
-  tabt0_ <- tabt_ %>%
-    dplyr::filter(col %in% cols_f_) %>%
-    dplyr::left_join(grpt_, by = "id") %>%
-    tibble::as_tibble()
-  tabt1_ <- tabt0_ %>%
-    dplyr::select(-group) %>%
-    tidyr::expand_grid(group = s_none_)
-
-  tabt_ <- dplyr::distinct(dplyr::bind_rows(tabt0_, tabt1_)) %>%
-    dtplyr::lazy_dt()  %>%
-    dplyr::group_by(group, col, val, nc) %>%
-    dplyr::mutate(tmp = dplyr::cur_group_id()) %>%
-    dplyr::arrange(tmp) %>%
-    dplyr::select(tmp, id, group, col, val, nc) %>%
-    dplyr::ungroup() %>%
-    tibble::as_tibble()
-
+  tabt_ <- fst::read_fst(file.path(.dir_tabs, "tdata.fst"))
+  tabt_ <- transform_input(tabt_, cols_e_, cols_f_)
   idt_  <- dplyr::select(tabt_, tmp, id)
+  tabt_ <- dplyr::distinct(tabt_, tmp, group, col, val, nc)
+  tabt_ <- dplyr::bind_rows(tabt_, dplyr::mutate(tabt_, group = "_none_"))
   tabt_ <- tabt_ %>%
-    dplyr::distinct(tmp, group, col, val, nc)
+    dtplyr::lazy_dt() %>%
+    dplyr::distinct(tmp, group, .keep_all = TRUE) %>%
+    dplyr::arrange(tmp) %>%
+    tibble::as_tibble()
+
 
   fst::write_fst(idt_, file.path(.dir_store, "_tmp", "tids.fst"), 100)
   fst::write_fst(tabt_, file.path(.dir_store, "_tmp", "tdata.fst"), 100)
 
 
   ncs_ <- tabs_ %>%
-    dplyr::select(group, col, nc) %>%
-    dplyr::count(group, col, nc)
-  nct_ <- tabt_ %>%
-    dplyr::select(group, col, nc) %>%
-    dplyr::count(group, col, nc)
+    dplyr::group_by(group, col, nc) %>%
+    dplyr::summarise(n = dplyr::n(), ids = list(tmp), .groups = "drop")
+  nct_ <- dplyr::count(tabt_, group, col, nc)
 
   group_ <- ncs_ %>%
     # Join with Target Dataframe
@@ -297,9 +281,24 @@ make_groups <- function(.dir_tabs, .dir_store, .cols, .range = Inf) {
       nct2 = max(nct),
       ns = ns[1],
       nt = sum(nt),
-      size = ns * nt,
+      size = as.numeric(ns) * as.numeric(nt),
+      ids = list(sort(unique(unlist(ids)))),
       .groups = "drop"
-    )
+    ) %>%
+    dplyr::mutate(check = ceiling(size / 1e7)) %>%
+    dplyr::arrange(-size) %>%
+    dplyr::mutate(
+      tmp = purrr::map2(
+        .x = ids,
+        .y = check,
+        .f = ~ split(.x, rep(seq_len(.y), each = ceiling(length(.x)/.y))[seq_len(length(.x))])
+    )) %>%
+    tidyr::unnest(tmp) %>%
+    dplyr::mutate(
+      id1 = purrr::map_int(tmp, dplyr::first),
+      id2 = purrr::map_int(tmp, dplyr::last)
+    ) %>%
+    dplyr::select(-ids, -tmp, -check, -ncs)
 
   return(group_)
 }
@@ -417,9 +416,15 @@ filter_groups <- function(.dir, .group) {
   ncs2_ <- .group$ncs2
   nct1_ <- .group$nct1
   nct2_ <- .group$nct2
+  id1_ <- .group$id1
+  id2_ <- .group$id2
 
-  strs_ <- as.character(glue::glue('col == "{col_}" & group == "{grp_}" & nc >= {ncs1_} & nc <= {ncs2_}'))
-  strt_ <- as.character(glue::glue('col == "{col_}" & group == "{grp_}" & nc >= {nct1_} & nc <= {nct2_}'))
+  strs_ <- as.character(
+    glue::glue('col == "{col_}" & group == "{grp_}" & nc >= {ncs1_} & nc <= {ncs2_} & tmp >= {id1_} & tmp <= {id2_}')
+    )
+  strt_ <- as.character(
+    glue::glue('col == "{col_}" & group == "{grp_}" & nc >= {nct1_} & nc <= {nct2_}')
+    )
 
   stab <- filter_fst_adj(sdata, strs_)
   ttab <- filter_fst_adj(tdata, strt_)
@@ -736,7 +741,7 @@ match_data <- function(
     tmp_match_ <- furrr::future_map_dfr(
       .x = lst_group_,
       .f = ~ match_group(
-        .lst = filter_groups(file.path(dir_store_, "_tmp"), .x),
+        .lst = filter_groups(.dir = file.path(dir_store_, "_tmp"), .group = .x),
         .max_match = .max_match,
         .method = method_,
         .workers = .workers
