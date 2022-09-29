@@ -14,6 +14,7 @@ match_data(
   .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw",
     "soundex"),
   .workers = floor(future::availableCores()/4),
+  .mat_size = 1e+07,
   .verbose = TRUE
 )
 }
@@ -35,6 +36,8 @@ The vector must be named wit either fuzzy (f) of exact (e).}
 \item{.method}{c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")}
 
 \item{.workers}{Workers to use}
+
+\item{.mat_size}{Maximum Matrix Size for Fuzzy Matching}
 
 \item{.verbose}{Print additional Information? (Default: TRUE)}
 }

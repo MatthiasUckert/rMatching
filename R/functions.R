@@ -600,20 +600,24 @@ prep_tables <- function(.source, .target, .fstd = NULL, .dir, .return = FALSE, .
 #' Maximum number of matches
 #' @param .method
 #' c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
+#' @param .mat_size
+#' Maximum Matrix Size for Fuzzy Matching
 #'
 #' @return A table with Groups (saved in .dir)
 #'
 #' @export
-make_groups <- function(.dir, .cols, .range = Inf, .max_match, .method) {
+make_groups <- function(.dir, .cols, .range = Inf, .max_match, .method, .mat_size = 1e7) {
 
   # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
   tmp <- id <- val <- group <- nc <- nct <- ncs <- ns <- nt <- ids <- size <- check <- NULL
+
+  # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+  # source("_debug_vars/debug-match_data.R")
 
   method_ <- get_method(.method)
 
   # Get Directories -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
   dirs_ <- get_dirs_and_files(.dir, .cols, .range, .max_match, .method = method_)
-  dirs_$dir_tabs
 
   dir.create(file.path(dirs_$dir_store, "_tmp"), FALSE, TRUE)
 
@@ -667,7 +671,7 @@ make_groups <- function(.dir, .cols, .range = Inf, .max_match, .method) {
       ids = list(sort(unique(unlist(ids)))),
       .groups = "drop"
     ) %>%
-    dplyr::mutate(check = ceiling(size / 1e7)) %>%
+    dplyr::mutate(check = ceiling(size / .mat_size)) %>%
     dplyr::arrange(-size) %>%
     dplyr::mutate(
       tmp = purrr::map2(
@@ -678,7 +682,9 @@ make_groups <- function(.dir, .cols, .range = Inf, .max_match, .method) {
     tidyr::unnest(tmp) %>%
     dplyr::mutate(
       id1 = purrr::map_int(tmp, dplyr::first),
-      id2 = purrr::map_int(tmp, dplyr::last)
+      id2 = purrr::map_int(tmp, dplyr::last),
+      ns = lengths(tmp),
+      size = as.numeric(ns) * as.numeric(nt)
     ) %>%
     dplyr::select(-ids, -tmp, -check, -ncs) %>%
     dplyr::arrange(dplyr::desc(size))
@@ -708,6 +714,8 @@ make_groups <- function(.dir, .cols, .range = Inf, .max_match, .method) {
 #' c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
 #' @param .workers
 #' Workers to use
+#' @param .mat_size
+#' Maximum Matrix Size for Fuzzy Matching
 #' @param .verbose
 #' Print additional Information? (Default: TRUE)
 #'
@@ -719,6 +727,7 @@ match_data <- function(
     .dir, .cols, .range = Inf, .weights = NULL, .max_match = 10, .allow_mult = TRUE,
     .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex"),
     .workers = floor(future::availableCores() / 4),
+    .mat_size = 1e7,
     .verbose = TRUE
 ) {
 

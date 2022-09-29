@@ -4,7 +4,7 @@
 \alias{make_groups}
 \title{Helper Function: Make Groups}
 \usage{
-make_groups(.dir, .cols, .range = Inf, .max_match, .method)
+make_groups(.dir, .cols, .range = Inf, .max_match, .method, .mat_size = 1e+07)
 }
 \arguments{
 \item{.dir}{Directory to store Tables}
@@ -18,6 +18,8 @@ The vector must be named wit either fuzzy (f) of exact (e).}
 \item{.max_match}{Maximum number of matches}
 
 \item{.method}{c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")}
+
+\item{.mat_size}{Maximum Matrix Size for Fuzzy Matching}
 }
 \value{
 A table with Groups (saved in .dir)

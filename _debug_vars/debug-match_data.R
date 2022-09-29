@@ -9,3 +9,4 @@
 .workers   = floor(future::availableCores() / 4)
 .verbose   = TRUE
 .allow_mult = TRUE
+.mat_size = 1e3
