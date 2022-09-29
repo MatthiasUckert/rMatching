@@ -1,4 +1,50 @@
 # Helper Functions -------------------------------------------------------------
+get_method <- function(.method) {
+  choices_ <- c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
+  match.arg(.method, choices_)
+}
+
+get_dir_store <- function(.dir, .cols, .range, .max_match, .method) {
+  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
+  value <- name <- cols <- max_match <- method <- hash <- NULL
+
+  tab_ <- tibble::enframe(.cols) %>%
+    dplyr::arrange(value) %>%
+    dplyr::mutate(cols = paste0(name, ": ", value)) %>%
+    dplyr::summarise(cols = paste(cols, collapse = ", ")) %>%
+    dplyr::mutate(range = .range, max_match = .max_match, method = .method) %>%
+    dplyr::mutate(hash = digest::digest(paste0(cols, range, max_match, method))) %>%
+    dplyr::select(hash, cols, range, max_match, method)
+
+  dir_ <- file.path(.dir, tab_$hash)
+  dir.create(dir_, FALSE, TRUE)
+
+  fil_ <- file.path(.dir, "variants.fst")
+  if (file.exists(fil_)) {
+    tab_ <- dplyr::distinct(dplyr::bind_rows(fst::read_fst(fil_), tab_))
+  }
+
+  fst::write_fst(tab_, fil_, 100)
+  return(dir_)
+}
+
+get_dirs_and_files <- function(.dir, .cols, .range, .max_match, .method) {
+  method_ <- get_method(.method)
+  dir_tabs_ <- file.path(.dir, "tables")
+  dir_store_ <- get_dir_store(.dir, .cols, .range, .max_match, .method = method_)
+  fil_match_ <- file.path(dir_store_, "matches.fst")
+
+  list(dir_tabs = dir_tabs_, dir_store = dir_store_, fil_match = fil_match_)
+}
+
+get_globals <- function() {
+  c(
+    "method_", ".max_match", ".workers", "match_group", "filter_groups",
+    ".dir", "filter_fst_adj", "dirs_"
+  )
+}
+
+
 #' Helper Function: Check if table has a column called 'id'
 #'
 #' @param .tab A dataframe
@@ -218,92 +264,6 @@ transform_input <- function(.tab, .cols_e, .cols_f) {
     tibble::as_tibble()
 }
 
-#' Helper Function: Make Groups
-#'
-#' @param .dir_tabs Directory to store Tables
-#' @param .dir_store Directory to store matching
-#' @param .cols
-#' A named character, with the columns names as string you want to match.\cr
-#' The vector must be named wit either fuzzy (f) of exact (e).
-#' @param .range Character range
-#'
-#' @return A table with Groups (saved in .dir)
-make_groups <- function(.dir_tabs, .dir_store, .cols, .range = Inf) {
-
-  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
-  tmp <- id <- val <- group <- nc <- nct <- ncs <- ns <- nt <- ids <- size <- check <- NULL
-
-  dir.create(file.path(.dir_store, "_tmp"), FALSE, TRUE)
-
-  cols_e_ <- .cols[names(.cols) %in% c("e", "exact")]
-  cols_f_ <- .cols[names(.cols) %in% c("f", "fuzzy")]
-
-  tabs_ <- fst::read_fst(file.path(.dir_tabs, "sdata.fst"))
-  tabs_ <- transform_input(tabs_, cols_e_, cols_f_)
-  ids_  <- dplyr::select(tabs_, tmp, id)
-  tabs_ <- dplyr::distinct(tabs_, tmp, group, col, val, nc)
-
-  fst::write_fst(ids_, file.path(.dir_store, "_tmp", "sids.fst"), 100)
-  fst::write_fst(tabs_, file.path(.dir_store, "_tmp", "sdata.fst"), 100)
-
-
-  tabt_ <- fst::read_fst(file.path(.dir_tabs, "tdata.fst"))
-  tabt_ <- transform_input(tabt_, cols_e_, cols_f_)
-  idt_  <- dplyr::select(tabt_, tmp, id)
-  tabt_ <- dplyr::distinct(tabt_, tmp, group, col, val, nc)
-  tabt_ <- dplyr::bind_rows(tabt_, dplyr::mutate(tabt_, group = "_none_"))
-  tabt_ <- tabt_ %>%
-    dtplyr::lazy_dt() %>%
-    dplyr::distinct(tmp, group, .keep_all = TRUE) %>%
-    dplyr::arrange(tmp) %>%
-    tibble::as_tibble()
-
-
-  fst::write_fst(idt_, file.path(.dir_store, "_tmp", "tids.fst"), 100)
-  fst::write_fst(tabt_, file.path(.dir_store, "_tmp", "tdata.fst"), 100)
-
-
-  ncs_ <- tabs_ %>%
-    dplyr::group_by(group, col, nc) %>%
-    dplyr::summarise(n = dplyr::n(), ids = list(tmp), .groups = "drop")
-  nct_ <- dplyr::count(tabt_, group, col, nc)
-
-  group_ <- ncs_ %>%
-    # Join with Target Dataframe
-    dplyr::inner_join(nct_, by = c("group", "col"), suffix = c("s", "t")) %>%
-    # Filter Nchars according to range
-    dplyr::filter(nct >= ncs - .range & nct <= ncs + .range) %>%
-    dplyr::group_by(group, col, ncs) %>%
-    dplyr::summarise(
-      ncs1 = ncs[1],
-      ncs2 = ncs[1],
-      nct1 = min(nct),
-      nct2 = max(nct),
-      ns = ns[1],
-      nt = sum(nt),
-      size = as.numeric(ns) * as.numeric(nt),
-      ids = list(sort(unique(unlist(ids)))),
-      .groups = "drop"
-    ) %>%
-    dplyr::mutate(check = ceiling(size / 1e7)) %>%
-    dplyr::arrange(-size) %>%
-    dplyr::mutate(
-      tmp = purrr::map2(
-        .x = ids,
-        .y = check,
-        .f = ~ split(.x, rep(seq_len(.y), each = ceiling(length(.x)/.y))[seq_len(length(.x))])
-    )) %>%
-    tidyr::unnest(tmp) %>%
-    dplyr::mutate(
-      id1 = purrr::map_int(tmp, dplyr::first),
-      id2 = purrr::map_int(tmp, dplyr::last)
-    ) %>%
-    dplyr::select(-ids, -tmp, -check, -ncs)
-
-  return(group_)
-}
-
-
 
 #' Helper Function: Match a single Group
 #'
@@ -431,31 +391,6 @@ filter_groups <- function(.dir, .group) {
 
   return(list(s = stab, t = ttab, group = .group$group, col = col_))
 }
-
-get_dir_store <- function(.dir, .cols, .range, .max_match, .method) {
-  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
-  value <- name <- cols <- max_match <- method <- hash <- NULL
-
-  tab_ <- tibble::enframe(.cols) %>%
-    dplyr::arrange(value) %>%
-    dplyr::mutate(cols = paste0(name, ": ", value)) %>%
-    dplyr::summarise(cols = paste(cols, collapse = ", ")) %>%
-    dplyr::mutate(range = .range, max_match = .max_match, method = .method) %>%
-    dplyr::mutate(hash = digest::digest(paste0(cols, range, max_match, method))) %>%
-    dplyr::select(hash, cols, range, max_match, method)
-
-  dir_ <- file.path(.dir, tab_$hash)
-  dir.create(dir_, FALSE, TRUE)
-
-  fil_ <- file.path(.dir, "variants.fst")
-  if (file.exists(fil_)) {
-    tab_ <- dplyr::distinct(dplyr::bind_rows(fst::read_fst(fil_), tab_))
-  }
-
-  fst::write_fst(tab_, fil_, 100)
-  return(dir_)
-}
-
 
 # Main Functions ----------------------------------------------------------
 #' Get Method Names
@@ -651,7 +586,105 @@ prep_tables <- function(.source, .target, .fstd = NULL, .dir, .return = FALSE, .
   }
 }
 
+#' Helper Function: Make Groups
+#'
+#' @param .dir
+#' Directory to store Tables
+#' @param .cols
+#' A named character, with the columns names as string you want to match.\cr
+#' The vector must be named wit either fuzzy (f) of exact (e).
+#' @param .range
+#' A range of characters as an integer, e.g. the name of the source dataframe is 5 characters long and the
+#' .range argument is 3, then all names in the target dataframe between 2 - 8 characters are used for the matching
+#' @param .max_match
+#' Maximum number of matches
+#' @param .method
+#' c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
+#'
+#' @return A table with Groups (saved in .dir)
+#'
+#' @export
+make_groups <- function(.dir, .cols, .range = Inf, .max_match, .method) {
 
+  # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
+  tmp <- id <- val <- group <- nc <- nct <- ncs <- ns <- nt <- ids <- size <- check <- NULL
+
+  method_ <- get_method(.method)
+
+  # Get Directories -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
+  dirs_ <- get_dirs_and_files(.dir, .cols, .range, .max_match, .method = method_)
+  dirs_$dir_tabs
+
+  dir.create(file.path(dirs_$dir_store, "_tmp"), FALSE, TRUE)
+
+  cols_e_ <- .cols[names(.cols) %in% c("e", "exact")]
+  cols_f_ <- .cols[names(.cols) %in% c("f", "fuzzy")]
+
+  tabs_ <- fst::read_fst(file.path(dirs_$dir_tabs, "sdata.fst"))
+  tabs_ <- transform_input(tabs_, cols_e_, cols_f_)
+  ids_  <- dplyr::select(tabs_, tmp, id)
+  tabs_ <- dplyr::distinct(tabs_, tmp, group, col, val, nc)
+
+  fst::write_fst(ids_, file.path(dirs_$dir_store, "_tmp", "sids.fst"), 100)
+  fst::write_fst(tabs_, file.path(dirs_$dir_store, "_tmp", "sdata.fst"), 100)
+
+
+  tabt_ <- fst::read_fst(file.path(dirs_$dir_tabs, "tdata.fst"))
+  tabt_ <- transform_input(tabt_, cols_e_, cols_f_)
+  idt_  <- dplyr::select(tabt_, tmp, id)
+  tabt_ <- dplyr::distinct(tabt_, tmp, group, col, val, nc)
+  tabt_ <- dplyr::bind_rows(tabt_, dplyr::mutate(tabt_, group = "_none_"))
+  tabt_ <- tabt_ %>%
+    dtplyr::lazy_dt() %>%
+    dplyr::distinct(tmp, group, .keep_all = TRUE) %>%
+    dplyr::arrange(tmp) %>%
+    tibble::as_tibble()
+
+
+  fst::write_fst(idt_, file.path(dirs_$dir_store, "_tmp", "tids.fst"), 100)
+  fst::write_fst(tabt_, file.path(dirs_$dir_store, "_tmp", "tdata.fst"), 100)
+
+
+  ncs_ <- tabs_ %>%
+    dplyr::group_by(group, col, nc) %>%
+    dplyr::summarise(n = dplyr::n(), ids = list(tmp), .groups = "drop")
+  nct_ <- dplyr::count(tabt_, group, col, nc)
+
+  group_ <- ncs_ %>%
+    # Join with Target Dataframe
+    dplyr::inner_join(nct_, by = c("group", "col"), suffix = c("s", "t")) %>%
+    # Filter Nchars according to range
+    dplyr::filter(nct >= ncs - .range & nct <= ncs + .range) %>%
+    dplyr::group_by(group, col, ncs) %>%
+    dplyr::summarise(
+      ncs1 = ncs[1],
+      ncs2 = ncs[1],
+      nct1 = min(nct),
+      nct2 = max(nct),
+      ns = ns[1],
+      nt = sum(nt),
+      size = as.numeric(ns) * as.numeric(nt),
+      ids = list(sort(unique(unlist(ids)))),
+      .groups = "drop"
+    ) %>%
+    dplyr::mutate(check = ceiling(size / 1e7)) %>%
+    dplyr::arrange(-size) %>%
+    dplyr::mutate(
+      tmp = purrr::map2(
+        .x = ids,
+        .y = check,
+        .f = ~ split(.x, rep(seq_len(.y), each = ceiling(length(.x)/.y))[seq_len(length(.x))])
+      )) %>%
+    tidyr::unnest(tmp) %>%
+    dplyr::mutate(
+      id1 = purrr::map_int(tmp, dplyr::first),
+      id2 = purrr::map_int(tmp, dplyr::last)
+    ) %>%
+    dplyr::select(-ids, -tmp, -check, -ncs) %>%
+    dplyr::arrange(dplyr::desc(size))
+
+  return(group_)
+}
 
 
 
@@ -683,12 +716,7 @@ prep_tables <- function(.source, .target, .fstd = NULL, .dir, .return = FALSE, .
 #' @return A dataframe (saved in .dir)
 #' @export
 match_data <- function(
-    .dir,
-    .cols,
-    .range = Inf,
-    .weights = NULL,
-    .max_match = 10,
-    .allow_mult = TRUE,
+    .dir, .cols, .range = Inf, .weights = NULL, .max_match = 10, .allow_mult = TRUE,
     .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex"),
     .workers = floor(future::availableCores() / 4),
     .verbose = TRUE
@@ -702,8 +730,7 @@ match_data <- function(
   # source("_debug_vars/debug-match_data.R")
 
   # Match Arguments -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  choices_ <- c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
-  method_ <- match.arg(.method, choices_)
+  method_ <- get_method(.method)
 
   # checks -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
   check_matching_cols(file.path(.dir, "tables", "sorig.fst"), .cols, "s")
@@ -711,20 +738,17 @@ match_data <- function(
   check_names(.cols)
 
   # Get Directories -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-  dir_tabs_  <- file.path(.dir, "tables")
-  dir_store_ <- get_dir_store(.dir, .cols, .range, .max_match, .method = method_)
-  fil_match_ <- file.path(dir_store_, "matches.fst")
+  dirs_ <- get_dirs_and_files(.dir, .cols, .range, .max_match, .method = method_)
 
-  if (file.exists(fil_match_)) {
+  if (file.exists(dirs_$fil_match)) {
     msg_verbose("Matching already exists", .verbose)
-    match_ <- fst::read_fst(fil_match_)
+    match_ <- fst::read_fst(dirs_$fil_match)
   } else {
 
     # Make Groups -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
     msg_verbose("Transforming tables and retrieving groups", .verbose)
     # .dir_tabs = dir_tabs_; .dir_store = dir_store_; .cols = .cols; .range = .range
-    tab_group_ <- make_groups(.dir_tabs = dir_tabs_, .dir_store = dir_store_, .cols, .range)
-    tab_group_ <- dplyr::arrange(tab_group_, dplyr::desc(size))
+    tab_group_ <- make_groups(.dir, .cols, .range, .max_match, method_)
     lst_group_ <- split(tab_group_, seq_len(nrow(tab_group_)))
     lst_group_ <- purrr::set_names(lst_group_, tab_group_$group)
 
@@ -733,20 +757,16 @@ match_data <- function(
 
     # Start Matching -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
     msg_verbose("Matching source table to target table ...", .verbose)
-    globals_ <- c(
-      "method_", ".max_match", ".workers", "match_group", "filter_groups",
-      ".dir", "filter_fst_adj", "dir_store_"
-    )
     future::plan("multisession", workers = .workers)
     tmp_match_ <- furrr::future_map_dfr(
       .x = lst_group_,
       .f = ~ match_group(
-        .lst = filter_groups(.dir = file.path(dir_store_, "_tmp"), .group = .x),
+        .lst = filter_groups(.dir = file.path(dirs_$dir_store, "_tmp"), .group = .x),
         .max_match = .max_match,
         .method = method_,
         .workers = .workers
       ),
-      .options = furrr::furrr_options(seed = TRUE, globals = globals_),
+      .options = furrr::furrr_options(seed = TRUE, globals = get_globals()),
       .progress = .verbose,
       .id = "group"
     )
@@ -754,10 +774,10 @@ match_data <- function(
     on.exit(future::plan("default"))
 
     # Read Transformed Data -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-    sdata <- fst::read_fst(file.path(dir_tabs_, "sdata.fst"))
-    tdata <- fst::read_fst(file.path(dir_tabs_, "tdata.fst"))
-    sids  <- fst::read_fst(file.path(dir_store_, "_tmp", "sids.fst"))
-    tids  <- fst::read_fst(file.path(dir_store_, "_tmp", "tids.fst"))
+    sdata <- fst::read_fst(file.path(dirs_$dir_tabs, "sdata.fst"))
+    tdata <- fst::read_fst(file.path(dirs_$dir_tabs, "tdata.fst"))
+    sids  <- fst::read_fst(file.path(dirs_$dir_store, "_tmp", "sids.fst"))
+    tids  <- fst::read_fst(file.path(dirs_$dir_store, "_tmp", "tids.fst"))
 
     # Joining Back IDs -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
     match0_ <- tmp_match_ %>%
@@ -792,8 +812,8 @@ match_data <- function(
       tibble::as_tibble()
 
     # Write Match -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
-    fst::write_fst(match_, file.path(dir_store_, "matches.fst"))
-    unlink(file.path(dir_store_, "_tmp"), force = TRUE)
+    fst::write_fst(match_, file.path(dirs_$dir_store, "matches.fst"))
+    unlink(file.path(dirs_$dir_store, "_tmp"), force = TRUE)
   }
 
 
@@ -807,8 +827,8 @@ match_data <- function(
       dplyr::mutate(weight = 1 / dplyr::n())
   }
 
-  sorig <- fst::read_fst(file.path(dir_tabs_, "sorig.fst"), columns = c("id", .cols))
-  torig <- fst::read_fst(file.path(dir_tabs_, "torig.fst"), columns = c("id", .cols))
+  sorig <- fst::read_fst(file.path(dirs_$dir_tabs, "sorig.fst"), columns = c("id", .cols))
+  torig <- fst::read_fst(file.path(dirs_$dir_tabs, "torig.fst"), columns = c("id", .cols))
 
   msg_verbose("Calculating scores", .verbose)
   score_ <- match_ %>%

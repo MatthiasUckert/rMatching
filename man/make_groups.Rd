@@ -4,17 +4,20 @@
 \alias{make_groups}
 \title{Helper Function: Make Groups}
 \usage{
-make_groups(.dir_tabs, .dir_store, .cols, .range = Inf)
+make_groups(.dir, .cols, .range = Inf, .max_match, .method)
 }
 \arguments{
-\item{.dir_tabs}{Directory to store Tables}
-
-\item{.dir_store}{Directory to store matching}
+\item{.dir}{Directory to store Tables}
 
 \item{.cols}{A named character, with the columns names as string you want to match.\cr
 The vector must be named wit either fuzzy (f) of exact (e).}
 
-\item{.range}{Character range}
+\item{.range}{A range of characters as an integer, e.g. the name of the source dataframe is 5 characters long and the
+.range argument is 3, then all names in the target dataframe between 2 - 8 characters are used for the matching}
+
+\item{.max_match}{Maximum number of matches}
+
+\item{.method}{c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")}
 }
 \value{
 A table with Groups (saved in .dir)
