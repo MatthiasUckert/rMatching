@@ -44,6 +44,27 @@ get_globals <- function() {
   )
 }
 
+get_cols_and_range <- function(.cols) {
+  lst_ <- purrr::set_names(stringi::stri_split_regex(.cols, "\\||\\-"), names(.cols))
+  tibble::enframe(lst_) %>%
+    tidyr::unnest_wider(value, names_sep = "_") %>%
+    dplyr::select(type = name, col = value_1, min = value_2, max = value_3) %>%
+    dplyr::mutate(
+      dplyr::across(c(min, max), as.numeric),
+      dplyr::across(c(min, max), ~ dplyr::if_else(is.na(.) & !type == "e", Inf, .)),
+      dplyr::across(c(col, min, max), ~ purrr::set_names(., type))
+      )
+}
+
+get_col_values <- function(.cols, .type = c("e", "f", "n"), .val = c("col", "min", "max")) {
+  type_ <- match.arg(.type, c("e", "f", "n"))
+  val_ <- match.arg(.val, c("col", "min", "max"))
+
+  get_cols_and_range(.cols) %>%
+    dplyr::filter(type == type_) %>%
+    dplyr::pull(!!dplyr::sym(val_))
+}
+
 
 #' Helper Function: Check if table has a column called 'id'
 #'
@@ -228,6 +249,7 @@ prep_table <- function(.tab, .fstd = NULL, .dir, .type = c("s", "t")) {
 
   # Transform Table -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
   tab_out_ <- .tab %>%
+    dplyr::mutate(dplyr::across(dplyr::everything(), as.character)) %>%
     tidyr::pivot_longer(!dplyr::matches("^id$"), names_to = "col", values_to = "val")
 
   if (!is.null(.fstd)) {
@@ -239,21 +261,43 @@ prep_table <- function(.tab, .fstd = NULL, .dir, .type = c("s", "t")) {
 }
 
 
-transform_input <- function(.tab, .cols_e, .cols_f) {
+transform_input <- function(.tab, .cols) {
   # Assign NULL to Global Variables -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- ---
   val <- id <- group <- nc <- tmp <- NULL
+  # col_e_ <- get_col_values(.cols, "e", "col")
+  # col_f_ <- get_col_values(.cols, "f", "col")
+  # col_n_ <- get_col_values(.cols, "n", "col")
+
 
   group_ <- .tab %>%
-    dtplyr::lazy_dt() %>%
-    dplyr::filter(col %in% .cols_e) %>%
-    dplyr::mutate(val = dplyr::if_else(is.na(val), "_none_", val)) %>%
+    # dtplyr::lazy_dt() %>%
+    dplyr::left_join(get_cols_and_range(.cols), by = "col") %>%
+    dplyr::filter(!type == "f") %>%
+    dplyr::filter(!(type == "n" & is.na(val))) %>%
+    dplyr::mutate(
+      coln = suppressWarnings(dplyr::if_else(type == "n", as.numeric(val), NA_real_)),
+      range = min + max,
+      tmp = suppressWarnings(ceiling(coln / range)),
+      tmp = dplyr::if_else(!is.na(tmp), paste0((tmp - 1) * 100 - min, "-", tmp * 100 + max), NA_character_),
+      val = dplyr::if_else(!is.na(tmp), tmp, val),
+      val = dplyr::case_when(
+        is.na(val) & type == "e" ~ "_none_",
+        TRUE ~ val
+      ),
+      val = paste0(col, ":", val)
+      ) %>%
     dplyr::group_by(id) %>%
     dplyr::summarise(group = paste(val, collapse = "<>"), .groups = "drop") %>%
+    # dplyr::mutate(type = paste0("group_", type)) %>%
+    # tidyr::pivot_wider(names_from = type, values_from = group) %>%
     dplyr::mutate(group = dplyr::if_else(grepl("_none_", group, fixed = TRUE), "_none_", group)) %>%
+    dplyr::distinct() %>%
     tibble::as_tibble()
+
   .tab %>%
-    dplyr::filter(col %in% .cols_f) %>%
     dtplyr::lazy_dt() %>%
+    dplyr::left_join(get_cols_and_range(.cols)[, c("col", "type")], by = "col") %>%
+    dplyr::filter(type == "f") %>%
     dplyr::left_join(group_, by = "id") %>%
     dplyr::group_by(group, col, val, nc) %>%
     dplyr::mutate(tmp = dplyr::cur_group_id()) %>%
@@ -621,11 +665,11 @@ make_groups <- function(.dir, .cols, .range = Inf, .max_match, .method, .mat_siz
 
   dir.create(file.path(dirs_$dir_store, "_tmp"), FALSE, TRUE)
 
-  cols_e_ <- .cols[names(.cols) %in% c("e", "exact")]
-  cols_f_ <- .cols[names(.cols) %in% c("f", "fuzzy")]
+  # cols_e_ <- .cols[names(.cols) %in% c("e", "exact")]
+  # cols_f_ <- .cols[names(.cols) %in% c("f", "fuzzy")]
 
   tabs_ <- fst::read_fst(file.path(dirs_$dir_tabs, "sdata.fst"))
-  tabs_ <- transform_input(tabs_, cols_e_, cols_f_)
+  tabs_ <- transform_input(tabs_, .cols)
   ids_  <- dplyr::select(tabs_, tmp, id)
   tabs_ <- dplyr::distinct(tabs_, tmp, group, col, val, nc)
 
@@ -634,7 +678,7 @@ make_groups <- function(.dir, .cols, .range = Inf, .max_match, .method, .mat_siz
 
 
   tabt_ <- fst::read_fst(file.path(dirs_$dir_tabs, "tdata.fst"))
-  tabt_ <- transform_input(tabt_, cols_e_, cols_f_)
+  tabt_ <- transform_input(tabt_, .cols)
   idt_  <- dplyr::select(tabt_, tmp, id)
   tabt_ <- dplyr::distinct(tabt_, tmp, group, col, val, nc)
   tabt_ <- dplyr::bind_rows(tabt_, dplyr::mutate(tabt_, group = "_none_"))

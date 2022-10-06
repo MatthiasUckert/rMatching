@@ -1,5 +1,5 @@
 .dir       = "_debug_data/script"
-.cols      = c(f = "name", e = "iso3", e = "size", f = "city", f = "address")
+.cols      = c(f = "name|5-5", e = "iso3", e = "size", f = "city|7-7", f = "address|10-10", n = "revenue|50-50")
 # .cols      = c(f = "name")
 .weights   = c(name = .7, city = .1, address = .2)
 # .weights   = c(name = 1)
