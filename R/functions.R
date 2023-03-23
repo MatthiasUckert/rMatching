@@ -804,7 +804,7 @@ match_data <- function(
       dplyr::left_join(dplyr::select(tdata, id_t = id, col, val_t = val), by = c("id_t", "col")) %>%
       dplyr::filter(!is.na(val_s), !is.na(val_t)) %>%
       tibble::as_tibble() %>%
-      dplyr::mutate(sim = stringdist::stringsim(val_s, val_t, method_, nthread = .workers)) %>%
+      dplyr::mutate(sim = stringdist::stringsim(val_s, val_t, method_)) %>%
       dplyr::mutate(group = "_missing_")
 
     # Combining Initial and Missing Matches -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -

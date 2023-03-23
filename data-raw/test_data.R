@@ -44,8 +44,10 @@ table_matches <- dplyr::inner_join(table_source, table_target, by = "isin", suff
   dplyr::mutate(match = 1) %>%
   dplyr::filter(iso3_s == iso3_t)
 
-table_target <- dplyr::select(table_target, -isin)
-table_source <- dplyr::select(table_source, -isin)
+table_target <- dplyr::select(table_target, -isin) %>%
+  dplyr::select(-revenue)
+table_source <- dplyr::select(table_source, -isin) %>%
+  dplyr::select(-revenue)
 
 usethis::use_data(table_source, overwrite = TRUE)
 usethis::use_data(table_target, overwrite = TRUE)

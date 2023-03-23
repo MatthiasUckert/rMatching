@@ -1,6 +1,6 @@
 Package: rMatching
 Title: (Fuzzy) Match two Datasets
-Version: 0.1
+Version: 0.2
 Authors@R: 
     person("Matthias", "Uckert", , "Matthias.Uckert@outlook.com", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))

@@ -45,7 +45,6 @@
 #'   \item{iso3}{ISO 3166-1 alpha-3 country codes}
 #'   \item{city}{City Name}
 #'   \item{address}{Address Name}
-#'   \item{revenue}{Revenue}
 #'   \item{size}{Firm Size}
 #' }
 "table_source"
@@ -61,7 +60,6 @@
 #'   \item{iso3}{ISO 3166-1 alpha-3 country codes}
 #'   \item{city}{City Name}
 #'   \item{address}{Address Name}
-#'   \item{revenue}{Revenue}
 #'   \item{size}{Firm Size}
 #' }
 "table_target"
