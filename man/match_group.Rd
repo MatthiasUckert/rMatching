@@ -8,8 +8,7 @@ match_group(
   .lst,
   .max_match = 10,
   .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw",
-    "soundex"),
-  .workers = floor(future::availableCores()/4)
+    "soundex")
 )
 }
 \arguments{
@@ -18,8 +17,6 @@ match_group(
 \item{.max_match}{Maximum number of matches}
 
 \item{.method}{c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")}
-
-\item{.workers}{workers to use}
 }
 \value{
 A dataframe

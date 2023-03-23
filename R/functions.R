@@ -270,15 +270,13 @@ transform_input <- function(.tab, .cols_e, .cols_f) {
 #' @param .lst A list produced by filter_groups()
 #' @param .max_match Maximum number of matches
 #' @param .method c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
-#' @param .workers workers to use
 #'
 #' @import data.table
 #'
 #' @return A dataframe
 match_group <- function(
     .lst, .max_match = 10,
-    .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex"),
-    .workers = floor(future::availableCores() / 4)
+    .method = c("osa", "lv", "dl", "hamming", "lcs", "qgram", "cosine", "jaccard", "jw", "soundex")
     ) {
 
   # DEBUG -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
@@ -314,8 +312,7 @@ match_group <- function(
   fuzzy_ <- stringdist::stringsimmatrix(
     a = s_[["val"]],
     b = t_[["val"]],
-    method = .method,
-    nthread = .workers
+    method = .method
   ) %>%
     reshape2::melt() %>%
     dplyr::rename(tmp_s = Var1, tmp_t = Var2, sim = value) %>%
@@ -772,8 +769,7 @@ match_data <- function(
       .f = ~ match_group(
         .lst = filter_groups(.dir = file.path(dirs_$dir_store, "_tmp"), .group = .x),
         .max_match = .max_match,
-        .method = method_,
-        .workers = .workers
+        .method = method_
       ),
       .options = furrr::furrr_options(seed = TRUE, globals = get_globals()),
       .progress = .verbose,
