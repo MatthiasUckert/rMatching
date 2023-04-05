@@ -848,7 +848,6 @@ match_data <- function(
   if (!.allow_mult) {
     msg_verbose("Adjusting scores", .verbose)
     tmp_ <- score_ %>%
-      dtplyr::lazy_dt() %>%
       dplyr::arrange(dplyr::desc(score)) %>%
       dplyr::filter(!duplicated(id_t)) %>%
       dplyr::group_by(id_s) %>%
@@ -860,7 +859,6 @@ match_data <- function(
 
     msg_verbose("Finalizing output", .verbose)
     out_ <- score_  %>%
-      dtplyr::lazy_dt() %>%
       dplyr::inner_join(tmp_, by = c("id_s", "id_t", "rank_old")) %>%
       dplyr::arrange(id_s, rank_new) %>%
       dplyr::left_join(sorig, by = c("id_s" = "id"), suffix = c("_s", "_t")) %>%
@@ -872,7 +870,6 @@ match_data <- function(
     out_ <- score_  %>%
       dplyr::mutate(rank_new = rank_old) %>%
       dplyr::filter(rank_new <= .max_match) %>%
-      dtplyr::lazy_dt() %>%
       dplyr::arrange(id_s, rank_new) %>%
       dplyr::left_join(sorig, by = c("id_s" = "id"), suffix = c("_s", "_t")) %>%
       dplyr::left_join(torig, by = c("id_t" = "id"), suffix = c("_s", "_t")) %>%
