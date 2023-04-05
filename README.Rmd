@@ -204,7 +204,7 @@ tictoc::toc()
 But if you want to change the columns, the function has to cache another matching
 
 ```{r}
-tictoc::tic("Match 1")
+tictoc::tic("Match 3")
 ```
 
 ```{r}
