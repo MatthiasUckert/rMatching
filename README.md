@@ -18,73 +18,350 @@ devtools::install_github("MatthiasUckert/rMatching")
 
 ## Build-In Tables
 
-Below The basic steps how to match two data sets
+Below The basic steps how to match two data sets by company names.
 
 ``` r
+
 library(rMatching); library(tidyverse); library(tictoc)
-#> Loading required package: data.table
-#> -- Attaching packages --------------------------------------- tidyverse 1.3.2 --
-#> v ggplot2 3.4.0     v purrr   1.0.1
-#> v tibble  3.1.8     v dplyr   1.1.0
-#> v tidyr   1.3.0     v stringr 1.5.0
-#> v readr   2.1.3     v forcats 1.0.0
-#> -- Conflicts ------------------------------------------ tidyverse_conflicts() --
-#> x dplyr::between()   masks data.table::between()
-#> x dplyr::filter()    masks stats::filter()
-#> x dplyr::first()     masks data.table::first()
-#> x dplyr::lag()       masks stats::lag()
-#> x dplyr::last()      masks data.table::last()
-#> x purrr::transpose() masks data.table::transpose()
-#> 
-#> Attaching package: 'tictoc'
-#> 
-#> 
-#> The following object is masked from 'package:data.table':
-#> 
-#>     shift
 ```
 
 The package contains three build-in datasets:
 
-- table_source: The source table with company names
+- `table_source`: The source table with company names
 
-- table_target: The target table with company names
+- `table_target`: The target table with company names
 
-- table_matches: A table in which source and target table are already
+- `table_matches`: A table in which source and target table are already
   matched
 
-``` r
-head(table_source, 3)
-#> # A tibble: 3 x 6
-#>   id       name                         iso3  city      address            size 
-#>   <chr>    <chr>                        <chr> <chr>     <chr>              <chr>
-#> 1 291C5CB8 ASM INTERNATIONAL NV         NLD   ALMERE    VERSTERKERSTRAAT 8 large
-#> 2 097A6454 TELEFONAKTIEBOLAGET LM ERICS SWE   STOCKHOLM TORSHAMNSGATAN 21~ small
-#> 3 0CA8A1F4 NOVO NORDISK A/S             DNK   BAGSVAERD NOVO ALLE 1        small
-```
+### table_source
 
-``` r
-head(table_target, 3)
-#> # A tibble: 3 x 6
-#>   id       name                        iso3  city      address             size 
-#>   <chr>    <chr>                       <chr> <chr>     <chr>               <chr>
-#> 1 40D62BF9 VOLKSWAGEN AG               DEU   WOLFSBURG BRIEFFACH 1849      midd~
-#> 2 18162F6F DAIMLER AG                  DEU   STUTTGART MERCEDESSTRASSE 120 small
-#> 3 47F0DB5C BAYERISCHE MOTOREN WERKE AG DEU   MUENCHEN  PETUELRING 130      midd~
-```
+<table class=" lightable-paper table" style="font-family: &quot;Arial Narrow&quot;, arial, helvetica, sans-serif; margin-left: auto; margin-right: auto; font-size: 10px; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+id
+</th>
+<th style="text-align:left;">
+name
+</th>
+<th style="text-align:left;">
+iso3
+</th>
+<th style="text-align:left;">
+city
+</th>
+<th style="text-align:left;">
+address
+</th>
+<th style="text-align:left;">
+size
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+291C5CB8
+</td>
+<td style="text-align:left;">
+ASM INTERNATIONAL NV
+</td>
+<td style="text-align:left;">
+NLD
+</td>
+<td style="text-align:left;">
+ALMERE
+</td>
+<td style="text-align:left;">
+VERSTERKERSTRAAT 8
+</td>
+<td style="text-align:left;">
+large
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+097A6454
+</td>
+<td style="text-align:left;">
+TELEFONAKTIEBOLAGET LM ERICS
+</td>
+<td style="text-align:left;">
+SWE
+</td>
+<td style="text-align:left;">
+STOCKHOLM
+</td>
+<td style="text-align:left;">
+TORSHAMNSGATAN 21, KISTA
+</td>
+<td style="text-align:left;">
+small
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0CA8A1F4
+</td>
+<td style="text-align:left;">
+NOVO NORDISK A/S
+</td>
+<td style="text-align:left;">
+DNK
+</td>
+<td style="text-align:left;">
+BAGSVAERD
+</td>
+<td style="text-align:left;">
+NOVO ALLE 1
+</td>
+<td style="text-align:left;">
+small
+</td>
+</tr>
+</tbody>
+</table>
 
-``` r
-head(table_matches, 3)
-#> # A tibble: 3 x 11
-#>   id_s     id_t  name_s name_t iso3_s iso3_t city_s city_t addre~1 addre~2 match
-#>   <chr>    <chr> <chr>  <chr>  <chr>  <chr>  <chr>  <chr>  <chr>   <chr>   <dbl>
-#> 1 291C5CB8 1147~ ASM I~ ASM I~ NLD    NLD    ALMERE ALMERE VERSTE~ VERSTE~     1
-#> 2 0CA8A1F4 BACB~ NOVO ~ NOVO ~ DNK    DNK    BAGSV~ BAGSV~ NOVO A~ NOVO A~     1
-#> 3 80DC386E C201~ KONIN~ KONIN~ NLD    NLD    AMSTE~ AMSTE~ PHILIP~ AMSTEL~     1
-#> # ... with abbreviated variable names 1: address_s, 2: address_t
-```
+### table_target
 
-# Matching Pipeline
+<table class=" lightable-paper table" style="font-family: &quot;Arial Narrow&quot;, arial, helvetica, sans-serif; margin-left: auto; margin-right: auto; font-size: 10px; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+id
+</th>
+<th style="text-align:left;">
+name
+</th>
+<th style="text-align:left;">
+iso3
+</th>
+<th style="text-align:left;">
+city
+</th>
+<th style="text-align:left;">
+address
+</th>
+<th style="text-align:left;">
+size
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+40D62BF9
+</td>
+<td style="text-align:left;">
+VOLKSWAGEN AG
+</td>
+<td style="text-align:left;">
+DEU
+</td>
+<td style="text-align:left;">
+WOLFSBURG
+</td>
+<td style="text-align:left;">
+BRIEFFACH 1849
+</td>
+<td style="text-align:left;">
+middle
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+18162F6F
+</td>
+<td style="text-align:left;">
+DAIMLER AG
+</td>
+<td style="text-align:left;">
+DEU
+</td>
+<td style="text-align:left;">
+STUTTGART
+</td>
+<td style="text-align:left;">
+MERCEDESSTRASSE 120
+</td>
+<td style="text-align:left;">
+small
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+47F0DB5C
+</td>
+<td style="text-align:left;">
+BAYERISCHE MOTOREN WERKE AG
+</td>
+<td style="text-align:left;">
+DEU
+</td>
+<td style="text-align:left;">
+MUENCHEN
+</td>
+<td style="text-align:left;">
+PETUELRING 130
+</td>
+<td style="text-align:left;">
+middle
+</td>
+</tr>
+</tbody>
+</table>
+
+### table_matches
+
+<table class=" lightable-paper table" style="font-family: &quot;Arial Narrow&quot;, arial, helvetica, sans-serif; margin-left: auto; margin-right: auto; font-size: 10px; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+id_s
+</th>
+<th style="text-align:left;">
+id_t
+</th>
+<th style="text-align:left;">
+name_s
+</th>
+<th style="text-align:left;">
+name_t
+</th>
+<th style="text-align:left;">
+iso3_s
+</th>
+<th style="text-align:left;">
+iso3_t
+</th>
+<th style="text-align:left;">
+city_s
+</th>
+<th style="text-align:left;">
+city_t
+</th>
+<th style="text-align:left;">
+address_s
+</th>
+<th style="text-align:left;">
+address_t
+</th>
+<th style="text-align:right;">
+match
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+291C5CB8
+</td>
+<td style="text-align:left;">
+1147DBEB
+</td>
+<td style="text-align:left;">
+ASM INTERNATIONAL NV
+</td>
+<td style="text-align:left;">
+ASM INTERNATIONAL NV
+</td>
+<td style="text-align:left;">
+NLD
+</td>
+<td style="text-align:left;">
+NLD
+</td>
+<td style="text-align:left;">
+ALMERE
+</td>
+<td style="text-align:left;">
+ALMERE
+</td>
+<td style="text-align:left;">
+VERSTERKERSTRAAT 8
+</td>
+<td style="text-align:left;">
+VERSTERKERSTRAAT 8
+</td>
+<td style="text-align:right;">
+1
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0CA8A1F4
+</td>
+<td style="text-align:left;">
+BACB9C1F
+</td>
+<td style="text-align:left;">
+NOVO NORDISK A/S
+</td>
+<td style="text-align:left;">
+NOVO NORDISK A/S
+</td>
+<td style="text-align:left;">
+DNK
+</td>
+<td style="text-align:left;">
+DNK
+</td>
+<td style="text-align:left;">
+BAGSVAERD
+</td>
+<td style="text-align:left;">
+BAGSVAERD
+</td>
+<td style="text-align:left;">
+NOVO ALLE 1
+</td>
+<td style="text-align:left;">
+NOVO ALLE
+</td>
+<td style="text-align:right;">
+1
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+80DC386E
+</td>
+<td style="text-align:left;">
+C201D476
+</td>
+<td style="text-align:left;">
+KONINKLIJKE PHILIPS NV
+</td>
+<td style="text-align:left;">
+KONINKLIJKE PHILIPS N.V.
+</td>
+<td style="text-align:left;">
+NLD
+</td>
+<td style="text-align:left;">
+NLD
+</td>
+<td style="text-align:left;">
+AMSTERDAM
+</td>
+<td style="text-align:left;">
+AMSTERDAM
+</td>
+<td style="text-align:left;">
+PHILIPS CENTER, AMSTELPLEIN 2
+</td>
+<td style="text-align:left;">
+AMSTELPLEIN 2
+</td>
+<td style="text-align:right;">
+1
+</td>
+</tr>
+</tbody>
+</table>
+
+# Name Matching Pipeline
 
 ## Step 1: Prepare Tables
 
@@ -141,21 +418,52 @@ prep_tables(
 
 The relevant tables are stored in the directory (.dir)
 
-``` r
-tibble(file = list.files("_debug_data/tables/")) %>%
-  mutate(type = case_when(
-    startsWith(file, "s") ~ "Source Table",
-    startsWith(file, "s") ~ "Target Table",
-    TRUE ~ "Groups"
-  )) %>% select(type, file)
-#> # A tibble: 4 x 2
-#>   type         file     
-#>   <chr>        <chr>    
-#> 1 Source Table sdata.fst
-#> 2 Source Table sorig.fst
-#> 3 Groups       tdata.fst
-#> 4 Groups       torig.fst
-```
+<table class=" lightable-paper table" style="font-family: &quot;Arial Narrow&quot;, arial, helvetica, sans-serif; margin-left: auto; margin-right: auto; font-size: 10px; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+type
+</th>
+<th style="text-align:left;">
+file
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Source Table
+</td>
+<td style="text-align:left;">
+sdata.fst
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Source Table
+</td>
+<td style="text-align:left;">
+sorig.fst
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Groups
+</td>
+<td style="text-align:left;">
+tdata.fst
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Groups
+</td>
+<td style="text-align:left;">
+torig.fst
+</td>
+</tr>
+</tbody>
+</table>
 
 ## Step 2: Match Data
 
@@ -251,25 +559,346 @@ match1 <- match_data(
 
 ``` r
 tictoc::toc()
-#> Match 1: 46.77 sec elapsed
+#> Match 1: 54.46 sec elapsed
 ```
 
 The output looks the following:
 
-``` r
-head(match1)
-#> # A tibble: 6 x 15
-#>   id_s     id_t  score rank_~1 rank_~2 name_s name_t iso3_s iso3_t city_s city_t
-#>   <chr>    <chr> <dbl>   <int>   <int> <chr>  <chr>  <chr>  <chr>  <chr>  <chr> 
-#> 1 000F8750 E48E~ 1           1       1 NTR H~ NTR H~ DNK    DNK    COPEN~ COPEN~
-#> 2 000F8750 1749~ 0.669       2       2 NTR H~ NEWCA~ DNK    DNK    COPEN~ KOBEN~
-#> 3 000F8750 6A2E~ 0.579       4       3 NTR H~ LOYAL~ DNK    DNK    COPEN~ COPEN~
-#> 4 002FCAB5 FF13~ 1           1       1 VIROG~ VIROG~ DNK    DNK    BIRKE~ BIRKE~
-#> 5 002FCAB5 45C4~ 0.394       3       2 VIROG~ PHOTO~ DNK    DNK    BIRKE~ ROSKI~
-#> 6 0051857E 9E94~ 0.76        1       1 GAUMO~ GAUMO~ FRA    FRA    NEUIL~ NEUIL~
-#> # ... with 4 more variables: address_s <chr>, address_t <chr>, size_s <chr>,
-#> #   size_t <chr>, and abbreviated variable names 1: rank_old, 2: rank_new
-```
+<table class=" lightable-paper table" style="font-family: &quot;Arial Narrow&quot;, arial, helvetica, sans-serif; margin-left: auto; margin-right: auto; font-size: 10px; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+id_s
+</th>
+<th style="text-align:left;">
+id_t
+</th>
+<th style="text-align:right;">
+score
+</th>
+<th style="text-align:right;">
+rank_old
+</th>
+<th style="text-align:right;">
+rank_new
+</th>
+<th style="text-align:left;">
+name_s
+</th>
+<th style="text-align:left;">
+name_t
+</th>
+<th style="text-align:left;">
+iso3_s
+</th>
+<th style="text-align:left;">
+iso3_t
+</th>
+<th style="text-align:left;">
+city_s
+</th>
+<th style="text-align:left;">
+city_t
+</th>
+<th style="text-align:left;">
+address_s
+</th>
+<th style="text-align:left;">
+address_t
+</th>
+<th style="text-align:left;">
+size_s
+</th>
+<th style="text-align:left;">
+size_t
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+000F8750
+</td>
+<td style="text-align:left;">
+E48EB751
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:left;">
+NTR HOLDING A/S
+</td>
+<td style="text-align:left;">
+NTR HOLDING A/S
+</td>
+<td style="text-align:left;">
+DNK
+</td>
+<td style="text-align:left;">
+DNK
+</td>
+<td style="text-align:left;">
+COPENHAGEN
+</td>
+<td style="text-align:left;">
+COPENHAGEN
+</td>
+<td style="text-align:left;">
+BREDGADE 30
+</td>
+<td style="text-align:left;">
+SANKT ANNAE PLADS 13 3
+</td>
+<td style="text-align:left;">
+middle
+</td>
+<td style="text-align:left;">
+middle
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+000F8750
+</td>
+<td style="text-align:left;">
+1749518D
+</td>
+<td style="text-align:right;">
+0.6686869
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:left;">
+NTR HOLDING A/S
+</td>
+<td style="text-align:left;">
+NEWCAP HOLDING A/S
+</td>
+<td style="text-align:left;">
+DNK
+</td>
+<td style="text-align:left;">
+DNK
+</td>
+<td style="text-align:left;">
+COPENHAGEN
+</td>
+<td style="text-align:left;">
+KOBENHAVN K
+</td>
+<td style="text-align:left;">
+BREDGADE 30
+</td>
+<td style="text-align:left;">
+BREDGADE 30
+</td>
+<td style="text-align:left;">
+middle
+</td>
+<td style="text-align:left;">
+middle
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+000F8750
+</td>
+<td style="text-align:left;">
+6A2ED2E8
+</td>
+<td style="text-align:right;">
+0.5789474
+</td>
+<td style="text-align:right;">
+4
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:left;">
+NTR HOLDING A/S
+</td>
+<td style="text-align:left;">
+LOYAL SOLUTIONS A/S
+</td>
+<td style="text-align:left;">
+DNK
+</td>
+<td style="text-align:left;">
+DNK
+</td>
+<td style="text-align:left;">
+COPENHAGEN
+</td>
+<td style="text-align:left;">
+COPENHAGEN
+</td>
+<td style="text-align:left;">
+BREDGADE 30
+</td>
+<td style="text-align:left;">
+ROBERT JACOBSENS VEJ 68
+</td>
+<td style="text-align:left;">
+middle
+</td>
+<td style="text-align:left;">
+middle
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+002FCAB5
+</td>
+<td style="text-align:left;">
+FF136D09
+</td>
+<td style="text-align:right;">
+1.0000000
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:left;">
+VIROGATES A/S
+</td>
+<td style="text-align:left;">
+VIROGATES A/S
+</td>
+<td style="text-align:left;">
+DNK
+</td>
+<td style="text-align:left;">
+DNK
+</td>
+<td style="text-align:left;">
+BIRKEROD
+</td>
+<td style="text-align:left;">
+BIRKEROD
+</td>
+<td style="text-align:left;">
+BANEVAENGET 13
+</td>
+<td style="text-align:left;">
+BLOKKEN 45
+</td>
+<td style="text-align:left;">
+large
+</td>
+<td style="text-align:left;">
+large
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+002FCAB5
+</td>
+<td style="text-align:left;">
+45C4AE7D
+</td>
+<td style="text-align:right;">
+0.3942308
+</td>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:left;">
+VIROGATES A/S
+</td>
+<td style="text-align:left;">
+PHOTOCAT A/S
+</td>
+<td style="text-align:left;">
+DNK
+</td>
+<td style="text-align:left;">
+DNK
+</td>
+<td style="text-align:left;">
+BIRKEROD
+</td>
+<td style="text-align:left;">
+ROSKILDE
+</td>
+<td style="text-align:left;">
+BANEVAENGET 13
+</td>
+<td style="text-align:left;">
+LANGEBJERG 4
+</td>
+<td style="text-align:left;">
+large
+</td>
+<td style="text-align:left;">
+large
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+0051857E
+</td>
+<td style="text-align:left;">
+9E944051
+</td>
+<td style="text-align:right;">
+0.7600000
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:left;">
+GAUMONT SA
+</td>
+<td style="text-align:left;">
+GAUMONT
+</td>
+<td style="text-align:left;">
+FRA
+</td>
+<td style="text-align:left;">
+FRA
+</td>
+<td style="text-align:left;">
+NEUILLY-SUR-SEINE
+</td>
+<td style="text-align:left;">
+NEUILLY-SUR-SEINE
+</td>
+<td style="text-align:left;">
+30, AVENUE CHARLES DE GAULLE
+</td>
+<td style="text-align:left;">
+30, AVENUE CHARLES DE GAULLE
+</td>
+<td style="text-align:left;">
+middle
+</td>
+<td style="text-align:left;">
+middle
+</td>
+</tr>
+</tbody>
+</table>
 
 The output contains the following relevant columns: id_s: The ID of the
 source table id_t: The ID of the target table score: similarity score
@@ -312,7 +941,7 @@ match2 <- match_data(
 
 ``` r
 tictoc::toc()
-#> Match 2: 0.53 sec elapsed
+#> Match 2: 0.7 sec elapsed
 ```
 
 But if you want to change the columns, the function has to cache another
@@ -353,7 +982,7 @@ match3 <- match_data(
 
 ``` r
 tictoc::toc()
-#> Match 1: 28.55 sec elapsed
+#> Match 1: 33.83 sec elapsed
 ```
 
 # Deduplicating Matches
@@ -382,7 +1011,7 @@ nrow(filter_dups(match3_unique, id_s, id_t))
 # Matching Comparison
 
 Let us now see how good the matching library performs. We calculated 3
-different matches which we stired in match1, match2, and match3.
+different matches which we stored in match1, match2, and match3.
 
 First we load the pre-stored matches and combine all the matches to a
 single table
@@ -404,17 +1033,6 @@ tab_comparison <- left_join(tab_matches, .matches, by = c("id_s", "id_t")) %>%
   replace_na(list(match = 0)) %>%
   group_by(no) %>%
   summarise(p = sum(match) / n())
-```
-
-``` r
-tab_comparison %>%
-  mutate(label = scales::percent(p, .1)) %>%
-  ggplot(aes(no, p)) + 
-  geom_col(fill = "blue", color = "black") + 
-  ggthemes::geom_rangeframe() + 
-  ggthemes::theme_tufte() +
-  scale_y_continuous(labels = scales::percent) +
-  geom_text(aes(label = label), vjust = 1.5, colour = "white", size = 3.5)
 ```
 
 <img src="man/figures/README-unnamed-chunk-22-1.png" width="100%" />

@@ -1,5 +1,6 @@
 ---
 output: github_document
+always_allow_html: true
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
@@ -30,33 +31,44 @@ devtools::install_github("MatthiasUckert/rMatching")
 
 ## Build-In Tables
 
-Below The basic steps how to match two data sets
+Below The basic steps how to match two data sets by company names.
 
-```{r example}
+```{r example, message=FALSE, warning=FALSE}
+
 library(rMatching); library(tidyverse); library(tictoc)
 ```
 
 The package contains three build-in datasets:
 
--   table_source: The source table with company names
+-   `table_source`: The source table with company names
 
--   table_target: The target table with company names
+-   `table_target`: The target table with company names
 
--   table_matches: A table in which source and target table are already matched
+-   `table_matches`: A table in which source and target table are already matched
 
-```{r}
-head(table_source, 3)
+### table_source
+```{r echo=FALSE}
+head(table_source, 3)  %>%
+  knitr::kable() %>%
+  kableExtra::kable_paper() %>%
+  kableExtra::kable_styling(font_size = 10, full_width = TRUE)
+```
+### table_target
+```{r echo=FALSE}
+head(table_target, 3)  %>%
+  knitr::kable() %>%
+  kableExtra::kable_paper() %>%
+  kableExtra::kable_styling(font_size = 10, full_width = TRUE)
+```
+### table_matches
+```{r echo=FALSE}
+head(table_matches, 3)  %>%
+  knitr::kable() %>%
+  kableExtra::kable_paper() %>%
+  kableExtra::kable_styling(font_size = 10, full_width = TRUE)
 ```
 
-```{r}
-head(table_target, 3)
-```
-
-```{r}
-head(table_matches, 3)
-```
-
-# Matching Pipeline
+# Name Matching Pipeline
 
 ## Step 1: Prepare Tables
 
@@ -89,13 +101,16 @@ prep_tables(
 
 The relevant tables are stored in the directory (.dir)
 
-```{r}
+```{r echo=FALSE}
 tibble(file = list.files("_debug_data/tables/")) %>%
   mutate(type = case_when(
     startsWith(file, "s") ~ "Source Table",
     startsWith(file, "s") ~ "Target Table",
     TRUE ~ "Groups"
-  )) %>% select(type, file)
+  )) %>% select(type, file)  %>%
+  knitr::kable() %>%
+  kableExtra::kable_paper() %>%
+  kableExtra::kable_styling(font_size = 10, full_width = TRUE)
 
 ```
 
@@ -150,8 +165,11 @@ tictoc::toc()
 
 The output looks the following:
 
-```{r}
-head(match1)
+```{r echo=FALSE}
+head(match1) %>%
+  knitr::kable() %>%
+  kableExtra::kable_paper() %>%
+  kableExtra::kable_styling(font_size = 10, full_width = TRUE)
 ```
 
 The output contains the following relevant columns: id_s: The ID of the source table id_t: The ID of the target table score: similarity score rank_old: Unadjusted Rank rank_new: Adjusted Rank (only relevant if .allow_mult = FALSE, than the rank will consider the best match of a name considering all the other matches)
@@ -228,7 +246,7 @@ nrow(filter_dups(match3_unique, id_s, id_t))
 
 # Matching Comparison
 
-Let us now see how good the matching library performs. We calculated 3 different matches which we stired in match1, match2, and match3.
+Let us now see how good the matching library performs. We calculated 3 different matches which we stored in match1, match2, and match3.
 
 First we load the pre-stored matches and combine all the matches to a single table
 
@@ -251,13 +269,15 @@ tab_comparison <- left_join(tab_matches, .matches, by = c("id_s", "id_t")) %>%
   summarise(p = sum(match) / n())
 ```
 
-```{r}
+```{r echo=FALSE, dpi=450}
 tab_comparison %>%
   mutate(label = scales::percent(p, .1)) %>%
   ggplot(aes(no, p)) + 
   geom_col(fill = "blue", color = "black") + 
-  ggthemes::geom_rangeframe() + 
+  ggthemes::geom_rangeframe(sides = "b") + 
   ggthemes::theme_tufte() +
-  scale_y_continuous(labels = scales::percent) +
-  geom_text(aes(label = label), vjust = 1.5, colour = "white", size = 3.5)
+  scale_y_continuous(labels = scales::percent, name = "Percentage of Accurate Matches") +
+  geom_text(aes(label = label), vjust = 1.5, colour = "white", size = 3.5) + 
+  scale_x_discrete(name = NULL) +
+  ggtitle("Matching Comparisons")
 ```
