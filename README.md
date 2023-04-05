@@ -13,30 +13,7 @@ You can install the development version of rMatching from
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("MatthiasUckert/rMatching")
-#> Downloading GitHub repo MatthiasUckert/rMatching@HEAD
-#> cli (3.6.0 -> 3.6.1) [CRAN]
-#> Installing 1 packages: cli
-#> package 'cli' successfully unpacked and MD5 sums checked
-#> Warning: cannot remove prior installation of package 'cli'
-#> Warning in file.copy(savedcopy, lib, recursive = TRUE): problem copying
-#> C:\Users\LS_Daske_Main\AppData\Local\Programs\R\R-4.2.2\library\00LOCK\cli\libs\x64\cli.dll
-#> to
-#> C:\Users\LS_Daske_Main\AppData\Local\Programs\R\R-4.2.2\library\cli\libs\x64\cli.dll:
-#> Permission denied
-#> Warning: restored 'cli'
-#> 
-#> The downloaded binary packages are in
-#>  C:\Users\LS_Daske_Main\AppData\Local\Temp\34\Rtmpg7xq9g\downloaded_packages
-#> -- R CMD build -----------------------------------------------------------------
-#>          checking for file 'C:\Users\LS_Daske_Main\AppData\Local\Temp\34\Rtmpg7xq9g\remotes1ab7c546238b\MatthiasUckert-rMatching-f89f2c3/DESCRIPTION' ...  v  checking for file 'C:\Users\LS_Daske_Main\AppData\Local\Temp\34\Rtmpg7xq9g\remotes1ab7c546238b\MatthiasUckert-rMatching-f89f2c3/DESCRIPTION'
-#>       -  preparing 'rMatching': (2.1s)
-#>    checking DESCRIPTION meta-information ...  v  checking DESCRIPTION meta-information
-#>       -  checking for LF line-endings in source and make files and shell scripts
-#>   -  checking for empty or unneeded directories
-#>   -  building 'rMatching_0.2.tar.gz'
-#>      
-#> 
+# devtools::install_github("MatthiasUckert/rMatching")
 ```
 
 ## Build-In Tables
@@ -432,7 +409,11 @@ prep_tables(
   .verbose = TRUE
 )
 #> 
-#> Data is aready stored ...
+#> Preparing Source Table ...
+#> 
+#> Preparing Target Table ...
+#> 
+#> Data is stored ...
 ```
 
 The relevant tables are stored in the directory (.dir)
@@ -561,7 +542,13 @@ match1 <- match_data(
   .verbose = TRUE
 )
 #> 
-#> Matching already exists
+#> Transforming tables and retrieving groups
+#> 
+#> Matching source table to target table ...
+#> 
+#> Adjusting similarity scores
+#> 
+#> Finalizing output ...
 #> 
 #> Calculating scores
 #> 
@@ -572,7 +559,7 @@ match1 <- match_data(
 
 ``` r
 tictoc::toc()
-#> Match 1: 1.53 sec elapsed
+#> Match 1: 45.28 sec elapsed
 ```
 
 The output looks the following:
@@ -954,7 +941,7 @@ match2 <- match_data(
 
 ``` r
 tictoc::toc()
-#> Match 2: 1.19 sec elapsed
+#> Match 2: 1.22 sec elapsed
 ```
 
 But if you want to change the columns, the function has to cache another
@@ -978,7 +965,13 @@ match3 <- match_data(
   .verbose = TRUE
 )
 #> 
-#> Matching already exists
+#> Transforming tables and retrieving groups
+#> 
+#> Matching source table to target table ...
+#> 
+#> Adjusting similarity scores
+#> 
+#> Finalizing output ...
 #> 
 #> Calculating scores
 #> 
@@ -989,7 +982,7 @@ match3 <- match_data(
 
 ``` r
 tictoc::toc()
-#> Match 3: 2.24 sec elapsed
+#> Match 3: 29.58 sec elapsed
 ```
 
 # Deduplicating Matches
