@@ -559,7 +559,7 @@ match1 <- match_data(
 
 ``` r
 tictoc::toc()
-#> Match 1: 54.46 sec elapsed
+#> Match 1: 54.73 sec elapsed
 ```
 
 The output looks the following:
@@ -941,7 +941,7 @@ match2 <- match_data(
 
 ``` r
 tictoc::toc()
-#> Match 2: 0.7 sec elapsed
+#> Match 2: 0.73 sec elapsed
 ```
 
 But if you want to change the columns, the function has to cache another
@@ -982,7 +982,7 @@ match3 <- match_data(
 
 ``` r
 tictoc::toc()
-#> Match 1: 33.83 sec elapsed
+#> Match 1: 33.19 sec elapsed
 ```
 
 # Deduplicating Matches
