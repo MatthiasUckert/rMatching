@@ -786,11 +786,10 @@ match_data <- function(
 
     # Joining Back IDs -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
     match0_ <- tmp_match_ %>%
-      dtplyr::lazy_dt() %>%
       dplyr::arrange(dplyr::desc(sim)) %>%
       dplyr::distinct(col, tmp_s, tmp_t, .keep_all = TRUE) %>%
-      dplyr::left_join(sids, by = c("tmp_s" = "tmp"), suffix = c("_s", "_t")) %>%
-      dplyr::left_join(tids, by = c("tmp_t" = "tmp"), suffix = c("_s", "_t")) %>%
+      dplyr::left_join(sids, by = c("tmp_s" = "tmp"), suffix = c("_s", "_t"), relationship = "many-to-many") %>%
+      dplyr::left_join(tids, by = c("tmp_t" = "tmp"), suffix = c("_s", "_t"), relationship = "many-to-many") %>%
       dplyr::select(group, col, id_s, id_t, val_s, val_t, sim) %>%
       tibble::as_tibble()
 
@@ -810,7 +809,6 @@ match_data <- function(
     # Combining Initial and Missing Matches -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
     msg_verbose("Finalizing output ...", .verbose)
     match_ <- dplyr::bind_rows(match0_, miss_) %>%
-      dtplyr::lazy_dt() %>%
       dplyr::arrange(dplyr::desc(sim)) %>%
       dplyr::distinct(col, id_s, id_t, .keep_all = TRUE) %>%
       dplyr::select(group, col, id_s, id_t, val_s, val_t, sim) %>%
@@ -838,7 +836,6 @@ match_data <- function(
   msg_verbose("Calculating scores", .verbose)
   score_ <- match_ %>%
     dplyr::mutate(sim = dplyr::if_else(is.na(sim), 0, sim)) %>%
-    dtplyr::lazy_dt() %>%
     dplyr::left_join(weight_, by = "col") %>%
     dplyr::mutate(score = sim * weight) %>%
     dplyr::group_by(id_s, id_t) %>%
